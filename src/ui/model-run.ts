@@ -63,10 +63,19 @@ export interface Tweaks {
 /** A table about a metre down at sowing that sinks half a centimetre a day. Depth, sinking rate and the 2 mm a day rise were set so 30 percent of land on such soils gives a regional lift near Rizzo et al. 2018 (6 percent on average, 24 in severe drought); they are placeholders, not measurements (see test/water-table.test.ts for the check against Rizzo et al. 2018). */
 export const SHALLOW_WATER_TABLE = { depthCm: 100, deepeningCmPerDay: 0.5, fringeCm: 40, maxRiseMm: 2 };
 
+/**
+ * A structural override applied to every simulation: switches one model choice (kernel curve, canopy coupling, VPD
+ * effect, diffuse light) so the spread across model structures can be measured next to the spread across weather years.
+ * Null in the app; set by the offline runner.
+ */
+let structure: Record<string, unknown> | null = null;
+export const setStructure = (o: Record<string, unknown> | null) => void (structure = o);
+
 /** One simulation of an option on one weather year (the array starts on the crop's model start day). */
 export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams, m: Management, season: WeatherDay[], tw: Tweaks = {}): SimulationResult {
   const s = { crop: cfg.key, location: loc.key, scenario: "typical", seed: 0, ...m } as Settings;
   let crop = cfg.cropFor(s);
+  if (structure) crop = { ...crop, ...structure };
   if (tw.noFrost) crop = { ...crop, frostKillTemp: -99, frostHardyTemp: -99 };
   if (tw.noHeat) crop = { ...crop, heatDamageRate: 0 };
   let sl = soil;
