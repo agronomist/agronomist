@@ -153,6 +153,21 @@ export function seasonDays(spec: SeasonSpec, label: number, src: DaySource): Wea
   return out;
 }
 
+/**
+ * The `n` days just before model day `yearStart` of a season (the days that spin up the soil water before the model season begins);
+ * null if any is missing. Days are in time order and relabelled with the model calendar's day of year.
+ */
+export function preDays(spec: SeasonSpec, label: number, src: DaySource, n: number): WeatherDay[] | null {
+  const out: WeatherDay[] = [];
+  for (let i = -n; i < 0; i++) {
+    const { year, idx } = realDay(spec, label, i);
+    const d = src(year, idx);
+    if (!d) return null;
+    out.push({ ...d, doy: mod(spec.yearStart + i - 1, 365) + 1 });
+  }
+  return out;
+}
+
 /** Season labels for which a complete season is available. */
 export function availableSeasons(spec: SeasonSpec, src: DaySource, from: number, to: number): number[] {
   const out: number[] = [];

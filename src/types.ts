@@ -174,6 +174,10 @@ export interface SoilParams {
   mineralizationQ10?: number;
   /** Initial plant-available water as fraction of capacity (0-1), same in all layers */
   initialFraction: number;
+  /** Water in each layer at sowing, mm (from a fallow spin-up). Overrides `initialFraction` when set. */
+  initialWater?: number[];
+  /** Curve number for surface runoff of rain (about 70 to 85 for row crops). Unset = all rain infiltrates. */
+  runoffCN?: number;
   /**
    * Share of the water held above field capacity that drains out of a layer each day. 1 (default) is free drainage:
    * everything above field capacity leaves at once. A poorly drained soil without tile has a small value (0.1 to 0.3),
@@ -303,6 +307,8 @@ export interface SimulationResult {
     transpiration: number;
     soilEvap: number;
     drainage: number;
+    /** Rain lost as surface runoff, mm (0 unless `runoffCN` is set; included in `rain`) */
+    runoff: number;
     /** Water that rose from a water table into the root zone, mm (0 without one) */
     capillary: number;
     /** Change in soil water storage (end minus start), mm */

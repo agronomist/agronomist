@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { CROPS, type CropKey } from "../src/ui/crops";
 import { DEFAULT_PRICES } from "../src/ui/decision";
-import { setStructure } from "../src/ui/model-run";
+import { setStructure, setWater } from "../src/ui/model-run";
 import { loadSnapshot, type Snapshot } from "../src/ui/snapshot";
 import { runStateCheck } from "../src/ui/state-check";
 
@@ -30,10 +30,23 @@ const variants: Record<string, Record<string, unknown> | null> = {
   "stem reserves 25% remobilized": { stemReserveFraction: 0.25, stemRemobRate: 3 },
 };
 
+// water-module choices: each is run with everything else at the default
+const waterVariants: Record<string, Parameters<typeof setWater>[0]> = {
+  "water: no runoff, no spin-up (old)": null,
+  "water: runoff CN 70": { runoffCN: 70 },
+  "water: runoff CN 85": { runoffCN: 85 },
+  "water: dry autumn start (0.1)": { autumnFraction: 0.1 },
+  "water: wet autumn start (0.7)": { autumnFraction: 0.7 },
+};
 const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 console.log(`# ${crop}: mean over states of the full+timed run\nvariant,mean_r,mean_abs_gap,mean_swing`);
-for (const [name, o] of Object.entries(variants)) {
+const all: [string, Record<string, unknown> | null, Parameters<typeof setWater>[0] | undefined][] = [
+  ...Object.entries(variants).map(([n, o]) => [n, o, undefined] as [string, Record<string, unknown> | null, undefined]),
+  ...Object.entries(waterVariants).map(([n, w]) => [n, null, w] as [string, null, Parameters<typeof setWater>[0]]),
+];
+for (const [name, o, w] of all) {
   setStructure(o);
+  setWater(w === undefined ? {} : w);
   const rows = (await runStateCheck(crop, plan, DEFAULT_PRICES[crop], () => undefined)).filter((r) => r.timed);
   console.log([name, avg(rows.map((r) => r.timed!.r)).toFixed(3), avg(rows.map((r) => Math.abs(r.timed!.levelGap))).toFixed(3), avg(rows.map((r) => r.timed!.sensitivity)).toFixed(3)].join(","));
 }

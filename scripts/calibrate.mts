@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { CROPS, type CropKey } from "../src/ui/crops";
 import { DEFAULT_PRICES } from "../src/ui/decision";
-import { setStructure } from "../src/ui/model-run";
+import { setStructure, setWater, WATER_DEFAULTS, type WaterSettings } from "../src/ui/model-run";
 import { loadSnapshot, type Snapshot } from "../src/ui/snapshot";
 import { runStateCheck } from "../src/ui/state-check";
 import { componentCheck, rowOk } from "../src/ui/component-check";
@@ -19,10 +19,12 @@ const cfg = CROPS[crop];
 const plan = { sowDoy: cfg.sow.value, rm: cfg.defaults.rm, nRate: cfg.defaults.nRate, seedingRate: cfg.defaults.seedingRate, depthCm: cfg.defaults.depthCm, habit: cfg.defaults.habit, prev: "rotated" as const };
 
 // what moves, and within what range. Ranges are what a reasonable agronomist would defend, not what fits.
-interface Dim { name: string; lo: number; hi: number; set: (v: number, t: Partial<Tuning>, s: Record<string, number>) => void; base: number }
+interface Dim { name: string; lo: number; hi: number; set: (v: number, t: Partial<Tuning>, s: Record<string, number>, w: Partial<WaterSettings>) => void; base: number }
 const dims: Dim[] = [
   { name: "delayPerMm", lo: 0.03, hi: 0.25, base: DEFAULT_TUNING.delayPerMm, set: (v, t) => void (t.delayPerMm = v) },
   { name: "delayPerDegC", lo: 0.5, hi: 5, base: DEFAULT_TUNING.delayPerDegC, set: (v, t) => void (t.delayPerDegC = v) },
+  { name: "runoffCN", lo: 68, hi: 88, base: WATER_DEFAULTS.runoffCN, set: (v, _t, _s, w) => void (w.runoffCN = v) },
+  { name: "autumnFraction", lo: 0.1, hi: 0.7, base: WATER_DEFAULTS.autumnFraction, set: (v, _t, _s, w) => void (w.autumnFraction = v) },
   { name: "wetScale", lo: 0.4, hi: 1.6, base: 1, set: (v, t) => void (t.wetScale = v) },
   { name: "wtScale", lo: 0.4, hi: 1.6, base: 1, set: (v, t) => void (t.wtScale = v) },
   { name: "irrScale", lo: 0.5, hi: 1.5, base: 1, set: (v, t) => void (t.irrScale = v) },
@@ -32,12 +34,15 @@ const dims: Dim[] = [
   { name: "stemReserveFraction", lo: 0, hi: 0.25, base: 0, set: (v, _t, s) => void ((s.stemReserveFraction = v), (s.stemRemobRate = 3)) },
 ];
 const structural = crop === "maize"; // the crop-parameter dimensions above are maize's; other crops tune the first five only
-const active = structural ? dims : dims.slice(0, 5);
+const shared = new Set(["delayPerMm", "delayPerDegC", "runoffCN", "autumnFraction", "wetScale", "wtScale", "irrScale"]);
+const active = structural ? dims : dims.filter((d) => shared.has(d.name));
 
 const apply = (x: number[]) => {
   const t: Partial<Tuning> = {};
   const s: Record<string, number> = {};
-  active.forEach((d, i) => d.set(x[i]!, t, s));
+  const w: Partial<WaterSettings> = {};
+  active.forEach((d, i) => d.set(x[i]!, t, s, w));
+  setWater(w);
   setTuning(t);
   setStructure(Object.keys(s).length ? s : null);
 };

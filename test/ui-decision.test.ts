@@ -111,7 +111,7 @@ describe("seasons on the calendar", () => {
   it("real ensembles only include seasons fully covered by complete years", () => {
     const m = realEnsemble(CROPS.maize, locationByKey("iowa"), h);
     expect(m.source).toBe("real");
-    expect(m.years[0]!.label).toBe(1991);
+    expect(m.years[0]!.label).toBe(1992); // a spring-sown season needs the previous autumn for its soil-water spin-up
     expect(m.years[m.years.length - 1]!.label).toBe(2024); // 2025's season runs into January 2026, which is not complete
     const s = realEnsemble(CROPS.maize, { ...locationByKey("iowa"), calShift: 182, lat: -33 }, h);
     expect(s.years[0]!.label).toBe(1992); // needs the previous year

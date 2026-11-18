@@ -17,6 +17,14 @@ export interface Ensemble {
   inSeason?: { label: number; through: string; observedDays: number };
 }
 
+/**
+ * Weather of the months before a season's first model day (real seasons only), kept beside the season's array so every function that is handed
+ * the array can start the soil from the water that weather left. Looked up by array identity, so slices carry nothing.
+ */
+const PRE = new WeakMap<WeatherDay[], WeatherDay[]>();
+export const tagPre = (season: WeatherDay[], pre: WeatherDay[]): WeatherDay[] => (PRE.set(season, pre), season);
+export const preOf = (season: WeatherDay[]): WeatherDay[] | undefined => PRE.get(season);
+
 const synth = new Map<string, WeatherDay[]>();
 
 /** A synthetic year from the generator: the location's climate normals plus a scenario's hazards, drawn with `seed`. */

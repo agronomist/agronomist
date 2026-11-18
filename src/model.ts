@@ -1,3 +1,4 @@
+import { runoffMm } from "./hydrology";
 import { diffuseRueFactor } from "./radiation";
 import { relativeCanopyHeat, waterLimitedGrowthFactor } from "./canopy";
 import { defaultProcesses, clamp, interpolate, type ProcessSet } from "./processes";
@@ -75,7 +76,7 @@ export function simulate(input: SimulationInput): SimulationResult {
   const wp = L.map((l) => l.wiltingPoint * l.thickness);
   const airDry1 = 0.5 * wp[0]!;
 
-  const sw = L.map((_, i) => wp[i]! + soil.initialFraction * (fc[i]! - wp[i]!));
+  const sw = L.map((_, i) => soil.initialWater?.[i] ?? wp[i]! + soil.initialFraction * (fc[i]! - wp[i]!));
   const total = () => sw.reduce((a, b) => a + b, 0);
   const sw0 = total();
 
@@ -127,7 +128,7 @@ export function simulate(input: SimulationInput): SimulationResult {
   let cumulativeGrowth = 0;
   let cumulativeGross = 0;
   let cumulativeResp = 0;
-  const bal = { rain: 0, irrigation: 0, transpiration: 0, soilEvap: 0, drainage: 0, capillary: 0 };
+  const bal = { rain: 0, irrigation: 0, transpiration: 0, soilEvap: 0, drainage: 0, runoff: 0, capillary: 0 };
   const days: DayOutput[] = [];
 
   for (let i = 0; i < weather.length && !matured && !frostKilled; i++) {
@@ -180,9 +181,12 @@ export function simulate(input: SimulationInput): SimulationResult {
     // ---- Water: infiltration cascades down (mineral N moves with drainage) ----
     // Water above field capacity drains at `drainFraction` per day; what exceeds saturation passes straight through.
     // With the default of 1 this is the plain tipping bucket: everything above field capacity leaves the layer at once.
-    let inflow = w.rain + irrigated;
+    // surface runoff of rain (not of irrigation), by curve number and how wet the top soil is
+    const runoff = soil.runoffCN !== undefined ? runoffMm(w.rain, soil.runoffCN, (sw[0]! - wp[0]!) / (fc[0]! - wp[0]!)) : 0;
+    let inflow = w.rain - runoff + irrigated;
     let inflowN = 0;
     bal.rain += w.rain;
+    bal.runoff += runoff;
     const dF = clamp(soil.drainFraction ?? 1, 0, 1);
     const poro = soil.extraPorosity ?? 0.12;
     for (let l = 0; l < L.length; l++) {

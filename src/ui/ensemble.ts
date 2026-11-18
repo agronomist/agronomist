@@ -1,10 +1,15 @@
 import type { WeatherDay } from "../index";
 import { cacheGet, cachePut } from "./history-cache";
-import { fetchHistory, realDay, seasonDays, seasonLabel, seasonStartYear, sourceOf, type DaySource, type History, type SeasonSpec } from "../data/history";
+import { preDays, fetchHistory, realDay, seasonDays, seasonLabel, seasonStartYear, sourceOf, type DaySource, type History, type SeasonSpec } from "../data/history";
 import type { HttpOptions } from "../data/http";
 import type { CropConfig } from "./crops";
 import type { Location } from "./locations";
-import { syntheticYear, type Ensemble, type EnsembleYear } from "./weather-years";
+import { syntheticYear, tagPre, type Ensemble, type EnsembleYear } from "./weather-years";
+
+/** A crop whose model season starts on or before this model day is spring-sown and gets a fallow spin-up. */
+export const SPRING_START = 100;
+/** Days of weather before the season start used for the spin-up: 1 October to the end of February. */
+export const PRE_DAYS = 151;
 
 export const specFor = (cfg: CropConfig, loc: Location): SeasonSpec => ({ yearStart: cfg.yearStart, yearDays: cfg.yearDays, shift: loc.calShift ?? 0 });
 
@@ -26,7 +31,14 @@ export function realEnsemble(cfg: CropConfig, loc: Location, h: History): Ensemb
   const years: EnsembleYear[] = [];
   for (let label = Math.min(...ys); label <= Math.max(...ys) + 1; label++) {
     const w = seasonDays(spec, label, src);
-    if (w) years.push({ label, weather: w });
+    if (!w) continue;
+    if (spec.yearStart <= SPRING_START) {
+      // spring-sown crops start from the water the previous autumn and winter left: seasons without those months are dropped so all start alike
+      const pre = preDays(spec, label, src, PRE_DAYS);
+      if (!pre) continue;
+      tagPre(w, pre);
+    }
+    years.push({ label, weather: w });
   }
   const first = years[0]?.label;
   const last = years[years.length - 1]?.label;

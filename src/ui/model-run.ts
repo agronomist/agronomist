@@ -9,7 +9,8 @@ import {
 } from "../index";
 import { locationByKey, soilFor, type Location } from "./locations";
 import { CROPS, type CropConfig, type Habit, type Settings } from "./crops";
-import { yearWeather } from "./weather-years";
+import { preOf, yearWeather } from "./weather-years";
+import { fallowWater } from "../hydrology";
 
 export { CROPS };
 export type { CropConfig, CropKey, Habit, Settings } from "./crops";
@@ -71,6 +72,15 @@ export const SHALLOW_WATER_TABLE = { depthCm: 100, deepeningCmPerDay: 0.5, fring
 let structure: Record<string, unknown> | null = null;
 export const setStructure = (o: Record<string, unknown> | null) => void (structure = o);
 
+/**
+ * Water-module settings applied to every simulation. `runoffCN` and the snow store act on real seasons and everywhere runoff applies;
+ * `autumnFraction` is how full the root zone is on 1 October, before the winter spin-up. Set to null to run without them (for comparisons).
+ */
+export interface WaterSettings { runoffCN: number; snowDegreeDay: number; autumnFraction: number }
+export const WATER_DEFAULTS: WaterSettings = { runoffCN: 78, snowDegreeDay: 3, autumnFraction: 0.35 };
+let water: WaterSettings | null = WATER_DEFAULTS;
+export const setWater = (w: Partial<WaterSettings> | null) => void (water = w === null ? null : { ...WATER_DEFAULTS, ...w });
+
 /** One simulation of an option on one weather year (the array starts on the crop's model start day). */
 export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams, m: Management, season: WeatherDay[], tw: Tweaks = {}): SimulationResult {
   const s = { crop: cfg.key, location: loc.key, scenario: "typical", seed: 0, ...m } as Settings;
@@ -91,6 +101,15 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
   if (tw.noWaterLimit) sl = { ...sl, initialFraction: 1 };
   if (m.poorDrainage) sl = { ...sl, drainFraction: 0.08 };
   if (m.poorDrainage || m.shallowWT) sl = { ...sl, waterTable: SHALLOW_WATER_TABLE };
+  if (water) {
+    sl = { ...sl, runoffCN: water.runoffCN };
+    const pre = preOf(season);
+    if (pre) {
+      // bare soil from 1 October to sowing, on the weather that really fell
+      const toSowing = season.slice(0, m.sowDoy - cfg.yearStart);
+      sl = { ...sl, initialWater: fallowWater(sl, [...pre, ...toSowing], { startFraction: water.autumnFraction, runoffCN: water.runoffCN, snowDegreeDay: water.snowDegreeDay }) };
+    }
+  }
   let weather = season.slice(m.sowDoy - cfg.yearStart);
   if (tw.noWaterLimit) weather = weather.map((w) => ({ ...w, rain: Math.max(w.rain, 12) }));
   return simulate({
@@ -161,18 +180,7 @@ export function findBest(crop: Settings["crop"], scenario: string, seed: number,
   const soil = soilFor(loc);
   const cfg = CROPS[crop];
   const year = yearWeather(cfg, scenario, seed, loc);
-  const evalAt = (c: Omit<BestChoice, "yieldTHa">): BestChoice => {
-    const s: Settings = { crop, location, scenario, seed, ...c };
-    const r = simulate({
-      weather: year.slice(c.sowDoy - cfg.yearStart),
-      crop: cfg.cropFor(s),
-      soil,
-      latitude: Math.abs(loc.lat),
-      fertilizer: cfg.fertilizerFor(c.nRate, c.sowDoy),
-      management: { seedingRate: c.seedingRate, sowingDepthCm: c.depthCm },
-    });
-    return { ...c, yieldTHa: r.yieldTHa };
-  };
+  const evalAt = (c: Omit<BestChoice, "yieldTHa">): BestChoice => ({ ...c, yieldTHa: simulateOption(cfg, loc, soil, c, year).yieldTHa });
   const pick = (rows: BestChoice[]): BestChoice => {
     const top = Math.max(...rows.map((r) => r.yieldTHa));
     const near = rows.filter((r) => r.yieldTHa >= top * 0.99);
