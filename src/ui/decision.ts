@@ -1,6 +1,7 @@
 import type { SoilParams } from "../index";
 import type { CropConfig, CropKey } from "./crops";
 import type { Location } from "./locations";
+import { supplyDemand, type SupplyDemand } from "./year-types";
 import { simulateOption, type Management } from "./model-run";
 import { syntheticYear, type Ensemble } from "./weather-years";
 
@@ -64,6 +65,8 @@ export interface Outcome {
   net: number;
   frostKilled: boolean;
   matured: boolean;
+  /** Water supply against demand around flowering and in grain fill, and the season type that follows. */
+  sd: SupplyDemand;
 }
 
 export interface Evaluation {
@@ -87,7 +90,7 @@ const ticks = (e: Ensemble) => e.years;
 export function evaluate(cfg: CropConfig, loc: Location, soil: SoilParams, opt: Option, ens: Ensemble, p: Prices): Evaluation {
   const outcomes: Outcome[] = ticks(ens).map((y) => {
     const r = simulateOption(cfg, loc, soil, opt, y.weather);
-    return { label: y.label, yieldTHa: r.yieldTHa, net: netReturn(cfg, opt, p, r.yieldTHa), frostKilled: r.frostKilled, matured: r.matured };
+    return { label: y.label, yieldTHa: r.yieldTHa, net: netReturn(cfg, opt, p, r.yieldTHa), frostKilled: r.frostKilled, matured: r.matured, sd: supplyDemand(r.days) };
   });
   const ys = stats(outcomes.map((o) => o.yieldTHa));
   const worst = outcomes.reduce((a, b) => (b.yieldTHa < a.yieldTHa ? b : a), outcomes[0]!);

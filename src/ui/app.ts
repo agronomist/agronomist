@@ -9,6 +9,7 @@ import { createScene3D, type Scene3D } from "./scene3d";
 import { loadEnsembles, setHistorySource, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
+import { YEAR_TYPES, summariseTypes } from "./year-types";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate, type ValidationResult } from "./validation";
 import { componentCheck, rowOk } from "./component-check";
@@ -583,6 +584,15 @@ function renderTable(cfg: (typeof CROPS)[CropKey]) {
   $("cmp").innerHTML = `<thead>${head}</thead><tbody>${rows.join("")}</tbody>`;
 }
 
+function renderYearTypes() {
+  const t = $("ytypes");
+  if (evals.length === 0) { t.innerHTML = ""; return; }
+  const rows = evals.map((e) => summariseTypes(e.outcomes));
+  const head = `<tr><th>Season type</th>${evals.map((_, i) => `<th><span class="chip" style="padding:2px 8px;border-width:1px"><i style="background:${colorVar(i)}"></i>${planName(i)}</span></th>`).join("")}</tr>`;
+  const body = YEAR_TYPES.map((ty, k) => `<tr><td>${ty.label}<br><small>${ty.hint}</small></td>${rows.map((r) => { const x = r[k]!; return `<td>${Math.round(x.share * 100)}% <small>(${x.years})</small>${x.years ? `<br>${x.meanYield.toFixed(1)} <small>t/ha</small>` : ""}</td>`; }).join("")}</tr>`).join("");
+  t.innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+
 function renderVerdict() {
   const box = $("verdict");
   box.hidden = false;
@@ -645,6 +655,7 @@ function refreshFast() {
   $("ensNote").textContent = ens.note;
   renderTable(cfg);
   renderVerdict();
+  renderYearTypes();
   populateYears();
   const sw = options.map((_, i) => `<span><i style="background:${colorVar(i)}"></i>${planName(i)}</span>`).join("");
   $("sw-exceed").innerHTML = sw;

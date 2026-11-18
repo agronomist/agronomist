@@ -42,6 +42,7 @@ const waterVariants: Record<string, Parameters<typeof setWater>[0]> = {
   "water: roots grow with heat, 1.5 mm/degree-day": { rootGrowthMmPerTT: 1.5 },
   "water: roots grow with heat, 2.2 mm/degree-day": { rootGrowthMmPerTT: 2.2 },
   "dry-down: root uptake limit 0.06/day": { uptakeRate: 0.06 },
+  "dry-down: root uptake limit 0.08/day (Messina 2017)": { uptakeRate: 0.08 },
   "dry-down: root uptake limit 0.10/day": { uptakeRate: 0.1 },
   "dry-down: upward flow 0.05": { upwardFlux: 0.05 },
   "dry-down: upward flow 0.12": { upwardFlux: 0.12 },
