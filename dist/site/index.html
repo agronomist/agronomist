@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crop Season Viewer</title>
+<title>Agronomist: crop decision lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -57,6 +57,12 @@ button.primary { background: var(--accent); color: var(--on-accent); border-colo
 button:hover { filter: brightness(1.06); }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
+.sitecard #mapWrap { grid-column: 1 / -1; }
+#mapBtn { margin-top: 8px; width: 100%; }
+#map { height: 300px; border-radius: 8px; border: 1px solid var(--line); background: #dfe9ef; }
+.coords { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.coords label { font-size: 12.5px; color: var(--muted); }
+.coords input { flex: 1; min-width: 140px; padding: 7px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font: inherit; color: inherit; }
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
 .scene-card { padding: 10px; }
 #scene { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; }
@@ -65,6 +71,22 @@ button:hover { filter: brightness(1.06); }
   background: linear-gradient(to right, var(--line) 0 var(--w0), var(--gold) var(--w0) var(--w1), var(--line) var(--w1) 100%); }
 #scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); }
 #scrub::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); }
+.how { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; counter-reset: step; }
+.how li { counter-increment: step; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 8px 38px; font-size: 13px; }
+.how li::before { content: counter(step); position: absolute; left: 10px; top: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font: 600 12px/20px var(--mono); text-align: center; }
+.how b { display: block; font-weight: 600; }
+.sitecard { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 10px 18px; align-items: start; }
+.sitecard p { margin: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.facts li { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--line); font-variant-numeric: tabular-nums; }
+.tip { display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.3; color: var(--muted); }
+.warn { margin: 8px 0 0; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--heat) 18%, var(--card)); }
+details.gloss { font-size: 13px; color: var(--muted); }
+details.gloss summary { cursor: pointer; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+details.gloss dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 10px 0 0; }
+details.gloss dt { color: var(--ink); font-weight: 600; }
+details.gloss dd { margin: 0; }
+@media (max-width: 760px) { .sitecard { grid-template-columns: 1fr; } }
 .hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
 
 .left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -98,6 +120,40 @@ dl.read dd { margin: 0; text-align: right; font: 500 13px var(--mono); font-vari
 canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; cursor: ew-resize; }
 .notes { font-size: 12.5px; color: var(--muted); max-width: 90ch; }
 
+
+/* Decision lab: plans, results across weather years, comparison tables */
+.planbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--line); background: var(--paper); font-weight: 600; }
+.chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--card); }
+.linkbtn { background: none; border: 0; padding: 6px 4px; color: var(--accent); text-decoration: underline; font-weight: 500; }
+.optrow { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.optrow select { width: auto; }
+.optrow label.chk { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.tblwrap { overflow-x: auto; }
+table.cmp { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.cmp th, table.cmp td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.cmp th:first-child, table.cmp td:first-child { text-align: left; }
+table.cmp th { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+table.cmp td small { color: var(--muted); }
+table.cmp .best { font-weight: 700; }
+.verdict { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--leaf) 14%, var(--card)); font-size: 14px; }
+.verdict p { margin: 0 0 4px; } .verdict p:last-child { margin: 0; }
+.prices { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 13px; align-items: center; }
+.prices label { display: flex; gap: 6px; align-items: center; }
+.prices input { width: 76px; padding: 5px 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font: inherit; color: inherit; }
+canvas.plot { width: 100%; height: 210px; display: block; }
+canvas.plot.click { cursor: pointer; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.swatches i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.sub { margin: 2px 0 8px; font-size: 12.5px; color: var(--muted); }
+.vgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; margin-top: 10px; }
+.note2 { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.playhead { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; margin-bottom: 10px; }
+.playhead .field { min-width: 220px; flex: 1; }
+
 @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .charts { grid-template-columns: 1fr; } .transport { grid-template-columns: auto auto 1fr; } .transport #speed { grid-column: 1 / -1; } }
 @media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
@@ -106,19 +162,76 @@ canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; 
 <body>
 <div class="wrap">
   <header>
-    <p class="eyebrow" id="eyebrow">Crop model · day by day</p>
-    <h1>Crop Season Viewer</h1>
-    <p class="lede" id="lede"></p>
+    <p class="eyebrow" id="eyebrow">Crop decision lab</p>
+    <h1>Agronomist</h1>
+    <p class="lede" id="lede">Compare crop plans on every weather year since 1991, not on one guess. See the typical result, the bad years, the money, and where the yield goes, then play any single season to see why.</p>
+    <ol class="how" aria-label="How to use">
+      <li><b>Pick a place and a crop</b>Choose a preset or drop a pin. The site loads that point's real daily weather since 1991.</li>
+      <li><b>Build up to three plans</b>Sowing date, maturity, nitrogen, seeding rate and depth. Copy a plan, change one thing, compare.</li>
+      <li><b>Read the risk, not just the average</b>Typical and bad-year yields, return after nitrogen and seed, the nitrogen curve, and which stress took the yield.</li>
+      <li><b>Play any year</b>Click a year on the chart to watch that season, day by day.</li>
+    </ol>
   </header>
 
-  <section class="card controls" aria-label="Season settings">
-    <div class="field"><span class="lab">Crop</span><div class="seg" role="group" aria-label="Crop"><button id="crop-maize" type="button" aria-pressed="true">Maize</button><button id="crop-wheat" type="button" aria-pressed="false">Wheat</button></div></div>
-    <div class="field"><label for="scenario">Weather year</label><select id="scenario"></select></div>
-    <div class="field" id="habitField" hidden><label for="habit">Growth habit</label><select id="habit"><option value="winter">Winter wheat</option><option value="spring">Spring wheat</option></select></div>
-    <div class="field"><label for="sow">Sowing date <output id="sowOut"></output></label><input id="sow" type="range" min="95" max="185" step="5"></div>
-    <div class="field"><label for="rm"><span id="rmLab">Hybrid maturity</span> <output id="rmOut"></output></label><input id="rm" type="range" min="95" max="125" step="5"></div>
-    <div class="field"><label for="nrate">Nitrogen <output id="nOut"></output></label><input id="nrate" type="range" min="0" max="300" step="20"></div>
-    <div class="field"><span class="lab">Random weather draw <output id="yearOut"></output></span><button id="newYear" type="button">Draw another year</button></div>
+  <section class="card sitecard" aria-label="Field location">
+    <div class="field"><label for="loc">Field location</label><select id="loc"></select><span class="tip" id="locCoords"></span>
+      <button id="mapBtn" type="button" aria-expanded="false" aria-controls="mapWrap">Drop a pin on the map</button></div>
+    <div><p id="locBlurb"></p><ul class="facts" id="locFacts"></ul></div>
+    <div id="mapWrap" hidden>
+      <div id="map" role="application" aria-label="World map. Click to drop a pin."></div>
+      <form id="coordForm" class="coords"><label for="coordIn">Or type latitude, longitude</label><input id="coordIn" inputmode="decimal" placeholder="42.03, -93.62" autocomplete="off"><button type="submit">Go</button></form>
+      <p class="tip" id="mapMsg" role="status">Click anywhere between 66°S and 66°N. The site fetches ten years of weather and the soil layers for that point.</p>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Plans">
+    <div class="planbar">
+      <div class="field"><span class="lab">Crop</span><div class="seg" role="group" aria-label="Crop"><button id="crop-maize" type="button" aria-pressed="true">Maize</button><button id="crop-wheat" type="button" aria-pressed="false">Wheat</button></div></div>
+      <div class="chips" id="chips" role="group" aria-label="Plans"></div>
+      <button id="addPlan" type="button" class="linkbtn">Copy this plan</button>
+      <button id="delPlan" type="button" class="linkbtn">Remove this plan</button>
+    </div>
+    <div class="controls">
+      <div class="field" id="habitField" hidden><label for="habit">Growth habit</label><select id="habit"><option value="winter">Winter wheat</option><option value="spring">Spring wheat</option></select></div>
+      <div class="field"><label for="sow">Sowing date <output id="sowOut"></output></label><input id="sow" type="range" min="95" max="185" step="5"><span class="tip" id="tip-sow"></span></div>
+      <div class="field"><label for="rm"><span id="rmLab">Hybrid maturity</span> <output id="rmOut"></output></label><input id="rm" type="range" min="95" max="125" step="5"><span class="tip" id="tip-rm"></span></div>
+      <div class="field"><label for="nrate">Nitrogen <output id="nOut"></output></label><input id="nrate" type="range" min="0" max="300" step="20"><span class="tip" id="tip-n"></span></div>
+      <div class="field"><label for="pop"><span id="popLab">Seeding rate</span> <output id="popOut"></output></label><input id="pop" type="range" min="4" max="12" step="0.5"><span class="tip" id="tip-pop"></span></div>
+      <div class="field"><label for="depth">Sowing depth <output id="depthOut"></output></label><input id="depth" type="range" min="1" max="10" step="1"><span class="tip" id="tip-depth"></span></div>
+    </div>
+    <div class="optrow">
+      <select id="objective" aria-label="What to optimise"><option value="mean">Best average return</option><option value="cautious">Protect the bad years</option></select>
+      <button id="optimize" type="button" class="primary">Suggest a better plan</button>
+      <span class="tip" id="optMsg" role="status"></span>
+      <label class="chk" id="inSeasonWrap" hidden><input type="checkbox" id="inSeason"><span id="inSeasonText">Use this season's weather so far</span></label>
+    </div>
+  </section>
+
+  <section class="card" id="results" aria-label="Results across weather years">
+    <h2>Results across weather years</h2>
+    <p class="sub" id="ensNote">Loading weather…</p>
+    <div class="tblwrap"><table class="cmp" id="cmp"></table></div>
+    <div class="verdict" id="verdict" hidden></div>
+    <div class="prices" aria-label="Prices">
+      <label>Grain price <input id="pGrain" type="number" min="0" step="5"> $/t</label>
+      <label>Nitrogen <input id="pN" type="number" min="0" step="0.05"> $/kg N</label>
+      <label>Seed <input id="pSeed" type="number" min="0" step="0.1"> $/1000 seeds</label>
+    </div>
+    <p class="note2">Return = grain sold at market moisture, minus nitrogen and seed. Land, machinery, labour and chemicals are the same for every plan, so they are left out.</p>
+  </section>
+
+  <section class="charts" aria-label="Risk charts">
+    <div class="card"><div class="chart-head"><h2>How often a plan reaches a yield</h2></div><p class="sub">Each line shows the share of years (up) that made at least this much (across). A line further right is better; a steep line is steadier.</p><canvas class="plot" id="c-exceed"></canvas><div class="swatches" id="sw-exceed"></div></div>
+    <div class="card"><div class="chart-head"><h2>Year by year, t/ha</h2></div><p class="sub">Click a year to play that season below. Larger dots mark a killing frost.</p><canvas class="plot click" id="c-years" aria-label="Yield by year for each plan"></canvas><div class="swatches" id="sw-years"></div></div>
+    <div class="card"><div class="chart-head"><h2>Nitrogen: return for the selected plan</h2></div><p class="sub" id="nSub"></p><canvas class="plot" id="c-nresp"></canvas><div class="swatches"><span><i style="background:var(--ink)"></i>Your nitrogen rate</span><span><i style="background:var(--leaf);opacity:.4"></i>Within about $1/ac of the best</span><span>Solid: average. Dashed: the poorer years (10th percentile).</span></div></div>
+    <div class="card"><div class="chart-head"><h2>Where the yield goes, t/ha</h2></div><p class="sub">Average over all years: what each plan yields, and what a no-stress crop would have added. Taken in this order, so shared losses fall on the later stress.</p><canvas class="plot" id="c-loss"></canvas><div class="swatches" id="sw-loss"></div></div>
+  </section>
+
+  <section class="card playhead-card" aria-label="Play one season">
+    <div class="playhead">
+      <div class="field"><label for="scenario">Season to play</label><select id="scenario"></select></div>
+      <span class="tip" id="playNote">The season plays for the selected plan.</span>
+    </div>
   </section>
 
   <main class="stage">
@@ -134,11 +247,10 @@ canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; 
       <p class="hint">Gold on the slider and charts marks the critical window around silking. Drag any chart to scrub.</p>
     </div>
     <section class="card">
-        <h2>Season result</h2>
+        <h2>Result of the season played</h2>
         <div class="big"><span id="res-yield"></span> <small>t/ha grain</small></div>
         <ul class="flags" id="res-flags"></ul>
-        <p class="best" id="res-best"></p>
-        <p style="margin:8px 0 0"><button id="tryBest" type="button">Load the best choice</button></p>
+        <p class="warn" id="res-warn" hidden></p>
       </section>
     </div>
 
@@ -158,6 +270,7 @@ canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; 
           <dt>Water stress</dt><dd id="r-ws"></dd>
           <dt>Nitrogen index</dt><dd id="r-nni"></dd>
           <dt id="r-vern-t">Vernalization</dt><dd id="r-vern"></dd>
+          <dt>Plants per m²</dt><dd id="r-plants"></dd>
           <dt id="r-kernels-t">Kernels</dt><dd id="r-kernels"></dd>
         </dl>
       </section>
@@ -183,7 +296,25 @@ canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; 
     <div class="card"><div class="chart-head"><h2>Stress indices, 1 = none</h2><div class="legend" id="lg-stress"></div></div><canvas class="chart" id="c-stress"></canvas></div>
   </section>
 
-  <p class="notes">Model parameters are generic placeholders and the weather is a synthetic annual cycle, so read the shapes and the timing effects, not the absolute yields. The best choice is the highest-yield combination on a coarse grid of sowing dates, varieties and nitrogen rates for the current weather year, preferring less nitrogen when yields are within 1%.</p>
+  <details class="gloss card">
+    <summary>What do these words mean?</summary>
+    <dl>
+      <dt>Critical window</dt><dd>The few weeks around flowering when the crop decides how many grains it will have. Stress here costs more yield than at any other time.</dd>
+      <dt>Water stress</dt><dd>1 means the roots found all the water the leaves wanted. Lower means the crop closed its pores and slowed growth.</dd>
+      <dt>Nitrogen index</dt><dd>1 means the crop has all the nitrogen it needs for its size. Lower means it is short.</dd>
+      <dt>Vernalization</dt><dd>Winter wheat needs weeks of cold before it will head. Sown too late or in a warm place, it stays leafy and never sets grain.</dd>
+      <dt>Maturity</dt><dd>Longer varieties use more of the season and can yield more, but risk frost before they finish or heat at flowering.</dd>
+    </dl>
+  </details>
+
+  <details class="val card">
+    <summary>Check the model against published yields</summary>
+    <p class="sub">Runs the default plan for the selected crop on every real year at the matching preset (central Iowa for maize, central Kansas for wheat) and compares it with USDA NASS state averages. Technology raises real yields over time and the model has none, so both are compared as departures from their own trend or mean. A state is much bigger than one site, so expect a fair match, not a perfect one.</p>
+    <button id="runVal" type="button">Run the check</button>
+    <div id="valOut" class="tblwrap" style="margin-top:10px"></div>
+  </details>
+
+  <p class="notes">What this is: a simplified, transparent crop model (thermal-time phenology, radiation-use growth, a layered water balance, a nitrogen pool, critical-window grain set, stand and depth effects), not DSSAT or APSIM. Weather is real daily data from Open-Meteo for every year since 1991 at the chosen point, run for each plan, so the spread you see is real weather spread. Soil comes from SoilGrids for pins and generic textures for presets, with a deep layer added below the mapped metre. Maize is calibrated to central Iowa: average yield, the size of the water gap, the nitrogen optimum, and the best seeding rate and sowing window. Wheat is only roughly calibrated and tends to run high in dry regions; use the check above. The model has no pests, disease, lodging, compaction, or waterlogging, no previous-crop nitrogen credit, and yields do not include the technology trend, so read differences between plans more than absolute levels. Southern pins run on a mirrored calendar. The season-to-date option splices the real weather so far with the rest of the season from each past year. Open-Meteo's archive trails real time by about a week.</p>
 </div>
 <script src="app.js"></script>
 </body>

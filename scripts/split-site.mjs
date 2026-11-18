@@ -2,7 +2,8 @@
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
-process.chdir("/home/claude/cropmodel");
+import { fileURLToPath } from "node:url";
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 // identifiers stay unminified: renaming by frequency would change every chunk on every edit
 const out = await build({ entryPoints: ["src/ui/app.ts"], bundle: true, minifyWhitespace: true, minifySyntax: true, format: "iife", target: "es2020", write: false, legalComments: "none", charset: "utf8" });
 const js = out.outputFiles[0].text.replace(/\n$/, "");
