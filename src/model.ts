@@ -1,3 +1,4 @@
+import { relativeCanopyHeat } from "./canopy";
 import { defaultProcesses, clamp, interpolate, type ProcessSet } from "./processes";
 import type {
   Irrigation,
@@ -358,10 +359,12 @@ export function simulate(input: SimulationInput): SimulationResult {
         cp.ws += ws;
         cp.nni += nni;
         cp.cgr += growth;
-        if (w.tmax > p.heatThreshold) {
+        // a water-stressed canopy runs warmer than the air and a well-watered one cooler, so damage follows canopy temperature
+        // (Lobell et al. 2011 found 1.7x the damage under drought); without a coupling the old air-temperature amplifier is used
+        const tHeat = p.canopyCoupling === undefined ? w.tmax : w.tmax + relativeCanopyHeat(w.tmax, w.tmin, ws, p.canopyCoupling);
+        if (tHeat > p.heatThreshold) {
           cp.hot++;
-          // a water-stressed canopy runs warmer, so the same air temperature does more damage (Lobell et al. 2011 found 1.7x the damage under drought)
-          heatDamage += (w.tmax - p.heatThreshold) * p.heatDamageRate * (1 + 0.5 * (1 - ws));
+          heatDamage += (tHeat - p.heatThreshold) * p.heatDamageRate * (p.canopyCoupling === undefined ? 1 + 0.5 * (1 - ws) : 1);
         }
       }
       grainSet = clamp(1 - heatDamage, 0, 1);

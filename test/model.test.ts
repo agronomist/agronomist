@@ -198,7 +198,8 @@ describe("heat stress on grain set", () => {
 
   it("does nothing in a cool season", () => {
     const r = run({ rainMean: 5, seed: 3 });
-    expect(Math.min(...r.days.map((d) => d.grainSet))).toBe(1);
+    // a slightly stressed canopy runs warmer than the air, so a day near the threshold can cost a fraction of a percent
+    expect(Math.min(...r.days.map((d) => d.grainSet))).toBeGreaterThan(0.99);
   });
 });
 

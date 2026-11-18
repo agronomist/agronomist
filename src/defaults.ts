@@ -30,7 +30,8 @@ export const maizeDefaults: CropParams = {
   co2TranspirationSensitivity: -0.05, // placeholder
 
   heatThreshold: 30,
-  heatDamageRate: 0.008,
+  canopyCoupling: 0.3, // PLACEHOLDER, tuned so the drought amplification of heat damage is near 1.7
+  heatDamageRate: 0.0088,
   heatStorageLoss: 0.7,
 
   kernelWindowBefore: 200, // about 2 weeks before silking in warm weather

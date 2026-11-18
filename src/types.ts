@@ -59,6 +59,8 @@ export interface CropParams {
 
   // --- Heat stress on grain set around silking ---
   heatThreshold: number; // daily Tmax (°C) above which damage accrues
+  /** If set, heat damage follows canopy temperature (see canopy.ts), with the canopy-minus-air offset scaled by this. Unset keeps air temperature with a drought amplifier. */
+  canopyCoupling?: number;
   heatDamageRate: number; // fraction of kernel set lost per °C above threshold per day, inside the critical window
   /** Fraction of the grain stored before the kernel count is set that is lost in proportion to heat damage (aborted kernels). Default 0. */
   heatStorageLoss?: number;

@@ -60,3 +60,11 @@ describe("poor drainage", () => {
     expect(Math.min(...wet.days.map((d) => d.aeration))).toBeLessThan(1);
   });
 });
+
+import { relativeCanopyHeat as _rch } from "../src/canopy";
+describe("irrigation and heat", () => {
+  it("cools a hot, dry-air canopy relative to a stressed one", () => {
+    expect(_rch(36, 20, 1, 1)).toBeLessThan(0);
+    expect(_rch(36, 20, 0.3, 1)).toBeGreaterThan(0);
+  });
+});
