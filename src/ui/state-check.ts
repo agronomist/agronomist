@@ -51,6 +51,9 @@ export function seedSoilProfile(lat: number, lon: number, s: SoilPointProfile | 
 }
 
 /** Fetch the weather and soil of every point of every state (and each crop's preset place) so a snapshot can be saved. */
+/** Places the last collection could not fetch, with the reason. */
+export const lastFailures: string[] = [];
+
 export async function collectAll(onProgress: (msg: string) => void): Promise<number> {
   const locs: Location[] = [];
   for (const c of Object.keys(CROPS) as CropKey[]) for (const s of seriesFor(c)) locs.push(locationByKey(s.location));
@@ -58,8 +61,22 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
   const total = locs.length + pts.length;
   let n = 0;
   let failed = 0;
+  lastFailures.length = 0;
+  const fetchOne = async (name: string, loc: Location) => {
+    for (let k = 0; k < 2; k++) {
+      try {
+        await historyFor(loc, gentle);
+        return;
+      } catch (e) {
+        if (k === 1) {
+          failed++;
+          lastFailures.push(`${name}: ${(e as Error).message ?? e}`);
+        } else await new Promise((r) => setTimeout(r, 4000));
+      }
+    }
+  };
   let label = "";
-  // Open-Meteo's free allowance is about 18 places a day: say so while waiting instead of looking stuck
+  // Open-Meteo's free allowance is limited: say so while waiting instead of looking stuck
   const gentle = { rateLimitWaitMs: 8000, onWait: (ms: number) => onProgress(`${label} (Open-Meteo is limiting requests; waiting ${Math.round(ms / 1000)} s, then continuing. Places already fetched are kept.)`) };
   const pause = () => new Promise<void>((r) => setTimeout(r, 1500));
   const seen = new Set<string>();
@@ -67,13 +84,13 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
     onProgress((label = `weather for ${l.name} (${++n} of ${total})…`));
     if (!seen.has(`${l.lat},${l.lon}`)) {
       seen.add(`${l.lat},${l.lon}`);
-      await historyFor(l, gentle).catch(() => void failed++);
+      await fetchOne(l.name, l);
       await pause();
     }
   }
   for (const pt of pts) {
     onProgress((label = `weather and soil for ${pt.tag} (${++n} of ${total})…`));
-    await historyFor({ lat: pt.lat, lon: pt.lon } as Location, gentle).catch(() => void failed++);
+    await fetchOne(pt.tag, { lat: pt.lat, lon: pt.lon } as Location);
     await pause();
     await pointSoil(pt.lat, pt.lon);
   }

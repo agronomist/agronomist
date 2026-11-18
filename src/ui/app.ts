@@ -13,7 +13,7 @@ import { YEAR_TYPES, summariseTypes } from "./year-types";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate, type ValidationResult } from "./validation";
 import { componentCheck, rowOk } from "./component-check";
-import { collectAll, runStateCheck, type StateRow } from "./state-check";
+import { collectAll, lastFailures, runStateCheck, type StateRow } from "./state-check";
 import { buildSnapshot } from "./snapshot";
 import { tradeoffs } from "./tradeoff";
 import { inject } from "@vercel/analytics";
@@ -830,7 +830,7 @@ async function saveSnapshot() {
     setHistorySource(($("snapSource") as HTMLSelectElement).value === "openmeteo" ? "openmeteo" : "power");
     const failed = await collectAll((m) => (out.textContent = `Fetching ${m}`));
     if (failed) {
-      out.textContent = `${failed} weather record(s) did not load (Open-Meteo is limiting requests). Wait a minute and press the button again: it keeps what it already has and only fetches the rest.`;
+      out.textContent = `${failed} weather record(s) did not load: ${lastFailures.join("; ").slice(0, 400)}. Press the button again: it keeps what it already has and only fetches the rest.`;
       return;
     }
     out.textContent = "Packing…";
