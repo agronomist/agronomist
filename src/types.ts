@@ -111,6 +111,8 @@ export interface CropParams {
   rootDecay: number;
   /** Rooting depth at emergence, mm (grows linearly with DVS to rootDepthMax by silking) */
   rootDepthInitial: number;
+  /** If set, the root front grows this many mm per °C d of thermal time (about 1.5 to 2 for maize), slower where the soil at the front is dry, instead of following crop stage. */
+  rootGrowthMmPerTT?: number;
   /** Maximum leaf area index; assimilate the canopy cannot take goes to stem */
   laiMax: number;
 
@@ -188,6 +190,10 @@ export interface SoilParams {
   extraPorosity?: number;
   /** A water table that can rise into the root zone by capillary flux in dry spells (Rizzo et al. 2018: shallow water tables buffer rain-free periods in the Corn Belt). */
   waterTable?: WaterTable;
+  /** If set, soil evaporation follows the two-stage (Ritchie) model: this many mm evaporate at the full energy rate after a wetting, then decline with the square root of time. Typically 6 to 12. */
+  evapStage1Mm?: number;
+  /** Stage 2 evaporation coefficient, mm d-0.5 (default 3.5) */
+  evapAlpha?: number;
 }
 
 export interface WaterTable {
@@ -244,6 +250,8 @@ export interface DayOutput {
   soilWaterLayers: number[];
   transpiration: number;
   soilEvap: number;
+  /** Rooting depth today, mm */
+  rootDepth: number;
   drainage: number;
   /** Nitrogen nutrition index (actual / critical shoot N, capped at 1); 1 if N not simulated */
   nni: number;

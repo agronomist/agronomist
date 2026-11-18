@@ -78,3 +78,38 @@ describe("the season starts from the soil water the weather left", () => {
   });
 });
 void syntheticWeather;
+
+import { simulate, maizeDefaults } from "../src";
+
+describe("root front", () => {
+  const run = (rainMean: number, crop = {}, soil = {}) => simulate({ weather: syntheticWeather({ rainMean, seed: 3 }), crop: { ...maizeDefaults, ...crop }, soil: { ...loamDefaults, ...soil } });
+  it("follows crop stage by default and reaches the maximum depth at silking", () => {
+    const r = run(3);
+    expect(Math.max(...r.days.map((d) => d.rootDepth))).toBeCloseTo(maizeDefaults.rootDepthMax, 6);
+  });
+  it("with thermal growth, deepens through the season and never passes the maximum", () => {
+    const r = run(3, { rootGrowthMmPerTT: 1.8 });
+    const depths = r.days.filter((d) => d.dvs >= 0).map((d) => d.rootDepth);
+    for (let i = 1; i < depths.length; i++) expect(depths[i]!).toBeGreaterThanOrEqual(depths[i - 1]! - 1e-9);
+    expect(Math.max(...depths)).toBeLessThanOrEqual(maizeDefaults.rootDepthMax + 1e-9);
+    expect(Math.max(...depths)).toBeGreaterThan(maizeDefaults.rootDepthInitial);
+  });
+  it("stalls where the subsoil is dry: the front is shallower than in moist soil", () => {
+    const wet = Math.max(...run(4, { rootGrowthMmPerTT: 1.8 }, { initialFraction: 0.9 }).days.map((d) => d.rootDepth));
+    const dry = Math.max(...run(0.3, { rootGrowthMmPerTT: 1.8 }, { initialFraction: 0.02 }).days.map((d) => d.rootDepth));
+    expect(dry).toBeLessThan(wet);
+  });
+});
+
+describe("two-stage soil evaporation", () => {
+  const run = (rainMean: number, soil = {}) => simulate({ weather: syntheticWeather({ rainMean, seed: 3 }), crop: maizeDefaults, soil: { ...loamDefaults, ...soil } });
+  it("keeps the water balance closed", () => {
+    const r = run(2, { evapStage1Mm: 9 });
+    const b = r.balance;
+    expect(b.rain + b.irrigation + b.capillary - b.runoff - b.transpiration - b.soilEvap - b.drainage).toBeCloseTo(b.storageChange, 6);
+  });
+  it("changes the amount of soil evaporation but is identical when unset", () => {
+    expect(run(2, { evapStage1Mm: undefined }).balance.soilEvap).toBe(run(2).balance.soilEvap);
+    expect(run(2, { evapStage1Mm: 9 }).balance.soilEvap).not.toBe(run(2).balance.soilEvap);
+  });
+});

@@ -37,6 +37,10 @@ const waterVariants: Record<string, Parameters<typeof setWater>[0]> = {
   "water: runoff CN 85": { runoffCN: 85 },
   "water: dry autumn start (0.1)": { autumnFraction: 0.1 },
   "water: wet autumn start (0.7)": { autumnFraction: 0.7 },
+  "water: roots grow with heat, 1.5 mm/degree-day": { rootGrowthMmPerTT: 1.5 },
+  "water: roots grow with heat, 2.2 mm/degree-day": { rootGrowthMmPerTT: 2.2 },
+  "water: two-stage evaporation, 6 mm": { evapStage1Mm: 6 },
+  "water: two-stage evaporation, 12 mm": { evapStage1Mm: 12 },
 };
 const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 console.log(`# ${crop}: mean over states of the full+timed run\nvariant,mean_r,mean_abs_gap,mean_swing`);

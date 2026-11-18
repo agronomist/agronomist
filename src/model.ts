@@ -122,6 +122,9 @@ export function simulate(input: SimulationInput): SimulationResult {
   let windowClosed = false;
   let kernels = 0;
   let sinkCap = Infinity;
+  let rootNow = p.rootDepthInitial;
+  let evapCum = 0; // two-stage soil evaporation: water evaporated since the soil was last wetted, mm
+  let evapT2 = 0; // days into stage 2
   let stemPeak = 0;
   let remobilized = 0;
   let matured = false;
@@ -134,6 +137,14 @@ export function simulate(input: SimulationInput): SimulationResult {
   for (let i = 0; i < weather.length && !matured && !frostKilled; i++) {
     const w = weather[i]!;
     const dtt = proc.thermalTime(w, p);
+    // rooting depth: by crop stage (default), or a front that grows with heat and stalls in dry soil
+    if (p.rootGrowthMmPerTT === undefined) rootNow = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+    else if (emerged && rootNow < p.rootDepthMax) {
+      let zl = L.length - 1;
+      for (let l = 0; l < L.length; l++) if (rootNow < tops[l]! + L[l]!.thickness) { zl = l; break; }
+      const relFront = clamp((sw[zl]! - wp[zl]!) / (fc[zl]! - wp[zl]!), 0, 1);
+      rootNow = Math.min(p.rootDepthMax, rootNow + p.rootGrowthMmPerTT * dtt * clamp(relFront / 0.3, 0, 1));
+    }
     const tmean = (w.tmax + w.tmin) / 2;
     const dl = proc.daylength(w.doy, latitude);
     const ppf = proc.photoperiodFactor(dl, p);
@@ -166,7 +177,7 @@ export function simulate(input: SimulationInput): SimulationResult {
     let irrigated = 0;
     const irr = input.irrigation;
     if (irr && emerged && dvs < (irr.stopDvs ?? 1.7) && bal.irrigation < (irr.maxSeasonMm ?? 300)) {
-      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      const rd = rootNow;
       let have = 0;
       let full = 0;
       for (let l = 0; l < L.length; l++) {
@@ -209,7 +220,7 @@ export function simulate(input: SimulationInput): SimulationResult {
     // ---- Capillary rise from a water table into the rooted layers, deepest first, up to field capacity ----
     const wt = soil.waterTable;
     if (wt && emerged) {
-      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      const rd = rootNow;
       const fringe = (wt.fringeCm ?? 40) * 10; // cm to mm, like the root depth
       const depth = (wt.depthCm + (wt.deepeningCmPerDay ?? 0) * i) * 10;
       let q = (wt.maxRiseMm ?? 3) * clamp((rd + fringe - depth) / fringe, 0, 1);
@@ -230,14 +241,31 @@ export function simulate(input: SimulationInput): SimulationResult {
     const relTop = (sw[0]! - wp[0]!) / (fc[0]! - wp[0]!);
     const relSecond = L.length > 1 ? (sw[1]! - wp[1]!) / (fc[1]! - wp[1]!) : relTop;
     const evapFactor = clamp(relTop / 0.5, 0, 1);
-    const soilEvap = Math.min(Math.max(0, sw[0]! - airDry1), (1 - fi) * et0 * evapFactor);
+    let evapWant = (1 - fi) * et0 * evapFactor;
+    if (soil.evapStage1Mm !== undefined) {
+      // Ritchie two-stage evaporation: energy-limited until `evapStage1Mm` has gone, then slowing with the root of time since
+      const wetted = w.rain - runoff + irrigated;
+      if (wetted > 0) {
+        evapCum = Math.max(0, evapCum - wetted);
+        if (evapCum < soil.evapStage1Mm) evapT2 = 0;
+      }
+      const epot = (1 - fi) * et0;
+      if (evapCum < soil.evapStage1Mm) evapWant = Math.min(epot, soil.evapStage1Mm - evapCum);
+      else {
+        evapT2 += 1;
+        const a = soil.evapAlpha ?? 3.5;
+        evapWant = Math.min(epot, a * (Math.sqrt(evapT2) - Math.sqrt(evapT2 - 1)));
+      }
+    }
+    const soilEvap = Math.min(Math.max(0, sw[0]! - airDry1), evapWant);
+    evapCum += soilEvap;
     sw[0]! -= soilEvap;
 
     // ---- Transpiration: root-weighted uptake across layers ----
     let transpiration = 0;
     let ws = 1;
     if (emerged) {
-      const rootDepth = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      const rootDepth = rootNow;
       const cap: number[] = [];
       const maxCap: number[] = [];
       for (let l = 0; l < L.length; l++) {
@@ -275,7 +303,7 @@ export function simulate(input: SimulationInput): SimulationResult {
     // ---- Aeration: a root zone holding water above field capacity starves roots of oxygen ----
     let aeration = 1;
     if (emerged && dF < 1) {
-      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      const rd = rootNow;
       let wet = 0;
       let room = 0;
       for (let l = 0; l < L.length; l++) {
@@ -341,7 +369,7 @@ export function simulate(input: SimulationInput): SimulationResult {
         const ncrit = proc.criticalN(shootDM / 100, p);
         const targetN = (ncrit / 100) * shootDM * 10;
         const demand = Math.max(0, targetN - nCrop);
-        const rootDepth = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+        const rootDepth = rootNow;
         const avail = L.map(
           (l, k) => minN[k]! * clamp((rootDepth - tops[k]!) / l.thickness, 0, 1) * p.nUptakeFraction,
         );
@@ -488,6 +516,7 @@ export function simulate(input: SimulationInput): SimulationResult {
       soilWaterLayers: sw.slice(),
       transpiration,
       soilEvap,
+      rootDepth: rootNow,
       drainage,
       nni,
       nCrop,
