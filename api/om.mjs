@@ -11,8 +11,8 @@ export default async function handler(req, res) {
   const q = req.query ?? {};
   const out = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) {
-    if (!ALLOWED.has(k) || typeof v !== "string") return res.status(400).json({ error: `parameter ${k} not allowed` });
-    out.set(k, v);
+    // anything not on the list is dropped, so nothing else can be sent upstream with the key
+    if (ALLOWED.has(k) && typeof v === "string") out.set(k, v);
   }
   const lat = Number(out.get("latitude"));
   const lon = Number(out.get("longitude"));
