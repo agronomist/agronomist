@@ -8,8 +8,14 @@ process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 const out = await build({ entryPoints: ["src/ui/app.ts"], bundle: true, minifyWhitespace: true, minifySyntax: true, format: "iife", target: "es2020", write: false, legalComments: "none", charset: "utf8" });
 const js = out.outputFiles[0].text.replace(/\n$/, "");
 const tpl = readFileSync("src/ui/template.html", "utf8");
-const html = tpl.replace(/<script>\s*\/\*APP\*\/\s*<\/script>/, '<script src="app.js"></script>');
-if (html === tpl) throw new Error("no APP marker replaced");
+// the WebGL field view is a separate file, fetched only when that view is chosen
+const three = await build({ entryPoints: ["src/ui/scene-three.ts"], bundle: true, minify: true, format: "iife", target: "es2020", write: false, legalComments: "none", charset: "utf8" });
+const threeJs = three.outputFiles[0].text;
+const threeName = `three-${createHash("sha1").update(threeJs).digest("hex").slice(0, 8)}.js`;
+const html0 = tpl.replace(/<script>\s*\/\*APP\*\/\s*<\/script>/, '<script src="app.js"></script>');
+if (html0 === tpl) throw new Error("no APP marker replaced");
+const html = html0.replace("/*THREE*/", threeName);
+if (html === html0) throw new Error("no THREE marker replaced");
 const dir = process.argv[2] ?? "dist/parts5";
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
@@ -36,7 +42,9 @@ parts.forEach((p, i) => { writeFileSync(`${dir}/${names[i]}`, p); files[names[i]
 const loader = 'Promise.all(' + JSON.stringify(names) + '.map(function(u){return fetch(u).then(function(r){if(!r.ok)throw new Error(u+" "+r.status);return r.text()})})).then(function(t){var s=document.createElement("script");s.textContent=t.join("");document.head.appendChild(s)}).catch(function(e){document.body.insertAdjacentHTML("afterbegin","<p style=\'padding:16px\'>Could not load the viewer: "+e.message+"</p>")});';
 writeFileSync(`${dir}/app.js`, loader); files["app.js"] = loader;
 writeFileSync(`${dir}/index.html`, html); files["index.html"] = html;
+writeFileSync(`${dir}/${threeName}`, threeJs); files[threeName] = threeJs;
 const manifest = Object.entries(files).map(([n, c]) => ({ file: n, sha: sha(Buffer.from(c)), size: Buffer.byteLength(c) }));
 writeFileSync(`${dir}/manifest.json`, JSON.stringify(manifest, null, 1));
+console.log("three bundle bytes", Buffer.byteLength(threeJs));
 console.log("chunks", parts.length, "js bytes", Buffer.byteLength(js), "max chunk", Math.max(...parts.map((p) => Buffer.byteLength(p))));
 console.log("nonascii in js:", /[^\x00-\x7f]/.test(js), "backslash-u:", /\\u[0-9a-f]{4}/i.test(js));

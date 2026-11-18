@@ -50,7 +50,7 @@ export function frameAt(run: Run, t: number): Frame {
     soilRel,
     emerged,
     progress: rows.length > 1 ? clamp(t / (rows.length - 1), 0, 1) : 0,
-    rootDepthMm: emerged ? run.crop.rootDepthInitial + (run.crop.rootDepthMax - run.crop.rootDepthInitial) * clamp(dvs, 0, 1) : 0,
+    rootDepthMm: emerged ? (a.rootDepth !== undefined ? L(a.rootDepth, b.rootDepth ?? a.rootDepth) : run.crop.rootDepthInitial + (run.crop.rootDepthMax - run.crop.rootDepthInitial) * clamp(dvs, 0, 1)) : 0,
     state: {
       dvs,
       lai,

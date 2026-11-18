@@ -4,7 +4,7 @@ import { LOCATIONS, DEFAULT_LOCATION, climateFacts, availableWaterMm, locationBy
 import { loadPin, PinError } from "./pin";
 import { createPinMap, type PinMap } from "./map";
 import { CROPS, runSeason, type CropKey, type Management, type Run, type Settings } from "./model-run";
-import { drawScene, frameAt, sceneTag } from "./scene";
+import { drawScene, frameAt, sceneTag, type Frame } from "./scene";
 import { createScene3D, type Scene3D } from "./scene3d";
 import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
@@ -55,6 +55,39 @@ const sctx = scene.getContext("2d")!;
 let view3d = true;
 let scene3d: Scene3D | null = null;
 let size3d = "";
+// the WebGL field view: its code is a separate file, fetched the first time the view is chosen
+interface GlScene { canvas: HTMLCanvasElement; render(run: Run, fr: Frame, time: number, calm: boolean): void; setSize(w: number, h: number): void }
+let viewGl = false;
+let glScene: GlScene | null = null;
+let glState: "idle" | "loading" | "failed" = "idle";
+function glFail(why: string) {
+  glState = "failed";
+  viewGl = false;
+  ($("view") as HTMLSelectElement).value = "3d";
+  $("sceneHint").textContent = `The WebGL view is not available here (${why}). Showing the standard 3D view.`;
+}
+function loadGl() {
+  if (glState !== "idle") return;
+  glState = "loading";
+  const src = document.querySelector('meta[name="three-src"]')?.getAttribute("content") ?? "";
+  if (!src || src.startsWith("/*")) return glFail("not in this build");
+  const el = document.createElement("script");
+  el.src = src;
+  el.onload = () => {
+    try {
+      const api = (globalThis as unknown as { __cropThree?: { create(onDrag: () => void): GlScene } }).__cropThree;
+      if (!api) return glFail("did not load");
+      glScene = api.create(() => (dirty = true));
+      scene.after(glScene.canvas);
+      glState = "idle";
+    } catch (e) {
+      glFail("no WebGL");
+    }
+  };
+  el.onerror = () => glFail("could not download");
+  document.head.appendChild(el);
+}
+let glSize = "";
 const chartEls: [ChartKind, HTMLCanvasElement][] = [
   ["weather", $("c-weather")],
   ["light", $("c-light")],
@@ -412,7 +445,20 @@ function frame(now: number) {
     lastTheme = now;
   }
   const fr = frameAt(run, t);
-  if (view3d) {
+  if (viewGl && !glScene) loadGl();
+  const useGl = viewGl && glScene !== null;
+  scene.style.display = useGl ? "none" : "";
+  if (glScene) glScene.canvas.style.display = useGl ? "block" : "none";
+  if (useGl && glScene) {
+    const w = glScene.canvas.clientWidth;
+    const h = glScene.canvas.clientHeight;
+    const key = `${w}x${h}x${window.devicePixelRatio}`;
+    if (key !== glSize) {
+      glScene.setSize(w, h);
+      glSize = key;
+    }
+    glScene.render(run, fr, now / 1000, calm);
+  } else if (view3d) {
     scene3d ??= createScene3D(scene, () => (dirty = true));
     const w = scene.clientWidth;
     const h = scene.clientHeight;
@@ -904,10 +950,13 @@ function init() {
   $("optimize").addEventListener("click", () => void runOptimize());
   $("tradeoff").addEventListener("click", () => void runTradeoffs());
   $("view").addEventListener("input", () => {
-    view3d = ($("view") as HTMLSelectElement).value === "3d";
+    const v = ($("view") as HTMLSelectElement).value;
+    viewGl = v === "gl";
+    view3d = v === "3d" || viewGl; // the standard 3D view draws while the WebGL code is still downloading
     size3d = "";
+    glSize = "";
     scene.style.cursor = view3d ? "grab" : "";
-    $("sceneHint").textContent = view3d ? "Drag the scene to turn it." : "Soil layers darken as they hold more water.";
+    $("sceneHint").textContent = viewGl ? "Drag sideways to turn it. Each soil label shows the water that layer holds." : view3d ? "Drag the scene to turn it." : "Soil layers darken as they hold more water.";
   });
   $("inSeason").addEventListener("change", () => {
     useIn = ($("inSeason") as HTMLInputElement).checked;

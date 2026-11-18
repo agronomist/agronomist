@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="three-src" content="/*THREE*/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agronomist: crop decision lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +56,7 @@ button.primary:hover, .seg button[aria-pressed="true"]:hover { background: #222;
 .coords input { flex: 1; min-width: 140px; padding: 7px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font: inherit; color: inherit; }
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
 .scene-card { padding: 10px; }
-#scene { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; touch-action: pan-y; cursor: grab; }
+#scene, #scene3gl { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; touch-action: pan-y; cursor: grab; }
 .transport { display: grid; grid-template-columns: auto auto minmax(80px, 1fr) auto auto; gap: 10px; align-items: center; margin-top: 10px; }
 #scrub { --w0: 40%; --w1: 60%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 6px; width: 100%;
   background: linear-gradient(to right, var(--line) 0 var(--w0), var(--gold) var(--w0) var(--w1), var(--line) var(--w1) 100%); }
@@ -290,7 +291,7 @@ details.val summary { cursor: pointer; font: 600 15px var(--display); letter-spa
         <button id="restart" type="button">Restart</button>
         <input id="scrub" type="range" min="0" max="100" step="0.01" aria-label="Day of season">
         <select id="speed" aria-label="Playback speed"><option value="6">Slow</option><option value="12" selected>Normal</option><option value="30">Fast</option></select>
-        <select id="view" aria-label="View"><option value="3d" selected>3D view</option><option value="flat">Side view</option></select>
+        <select id="view" aria-label="View"><option value="3d" selected>3D view</option><option value="gl">3D (WebGL)</option><option value="flat">Side view</option></select>
       </div>
       <div id="sceneTag" class="scene-tag" role="status" hidden></div>
       <p class="hint" id="sceneHint">Drag the scene to turn it.</p>

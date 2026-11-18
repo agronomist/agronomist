@@ -8,6 +8,7 @@
     "demo": "tsx src/demo.ts"
   },
   "devDependencies": {
+    "@types/three": "^0.170.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "three": "^0.170.0",
     "zdog": "^1.1.3"
   }
 }
