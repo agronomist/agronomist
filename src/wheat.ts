@@ -22,6 +22,7 @@ export const wheatWinterDefaults: CropParams = {
   k: 0.6,
   sla: 0.02,
   rue: 3.0, // gross
+  diffuseGain: 0.3, // PLACEHOLDER, see radiation.ts
   parFraction: 0.5,
   tempResponse: [0, 12, 22, 35],
   initialBiomass: 4,

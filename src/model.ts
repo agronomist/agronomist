@@ -1,3 +1,4 @@
+import { diffuseRueFactor } from "./radiation";
 import { relativeCanopyHeat, waterLimitedGrowthFactor } from "./canopy";
 import { defaultProcesses, clamp, interpolate, type ProcessSet } from "./processes";
 import type {
@@ -350,7 +351,7 @@ export function simulate(input: SimulationInput): SimulationResult {
       }
 
       gross =
-        proc.dailyGrowth({ srad: w.srad, fi, tempFactor, ws: p.vpdSensitivity ? waterLimitedGrowthFactor(ws, w.tmax, w.tmin, p.vpdSensitivity, w.dewpoint) : ws, p }) * co2f.assimilation * nni * aeration;
+        proc.dailyGrowth({ srad: w.srad, fi, tempFactor, ws: p.vpdSensitivity ? waterLimitedGrowthFactor(ws, w.tmax, w.tmin, p.vpdSensitivity, w.dewpoint) : ws, p }) * co2f.assimilation * nni * aeration * (p.diffuseGain ? diffuseRueFactor(w.srad, w.doy, latitude, p.diffuseGain) : 1);
       resp = Math.min(
         gross,
         proc.maintenanceRespiration({ tmean, livingBiomass: leaf + stem + root, p }),

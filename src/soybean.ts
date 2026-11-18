@@ -19,6 +19,7 @@ export const soybeanDefaults: CropParams = {
   k: 0.7,
   sla: 0.022,
   rue: 2.3,
+  diffuseGain: 0.3, // PLACEHOLDER, see radiation.ts
   parFraction: 0.5,
   tempResponse: [8, 22, 31, 42],
   initialBiomass: 3,

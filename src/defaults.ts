@@ -18,6 +18,7 @@ export const maizeDefaults: CropParams = {
   k: 0.65,
   sla: 0.018,
   rue: 4.0, // gross; maintenance respiration is now explicit
+  diffuseGain: 0.3, // PLACEHOLDER, see radiation.ts
   parFraction: 0.5,
   tempResponse: [8, 18, 30, 42],
   initialBiomass: 6,

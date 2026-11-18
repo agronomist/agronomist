@@ -65,6 +65,8 @@ export interface CropParams {
   canopyCoupling?: number;
   /** If set, supply-limited growth also falls with vapour pressure deficit (transpiration efficiency is about 1/VPD). Exponent on the VPD ratio; 0 or unset is off. */
   vpdSensitivity?: number;
+  /** Fractional change in radiation use efficiency per unit of diffuse fraction of the day's light (see radiation.ts); 0 or unset is off. Needs `latitude`. */
+  diffuseGain?: number;
   heatDamageRate: number; // fraction of kernel set lost per °C above threshold per day, inside the critical window
   /** Fraction of the grain stored before the kernel count is set that is lost in proportion to heat damage (aborted kernels). Default 0. */
   heatStorageLoss?: number;
