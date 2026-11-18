@@ -65,8 +65,8 @@ button:hover { filter: brightness(1.06); }
 .coords input { flex: 1; min-width: 140px; padding: 7px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; font: inherit; color: inherit; }
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
 .scene-card { padding: 10px; }
-#scene { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; }
-.transport { display: grid; grid-template-columns: auto auto minmax(80px, 1fr) auto; gap: 10px; align-items: center; margin-top: 10px; }
+#scene { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; touch-action: pan-y; cursor: grab; }
+.transport { display: grid; grid-template-columns: auto auto minmax(80px, 1fr) auto auto; gap: 10px; align-items: center; margin-top: 10px; }
 #scrub { --w0: 40%; --w1: 60%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 6px; width: 100%;
   background: linear-gradient(to right, var(--line) 0 var(--w0), var(--gold) var(--w0) var(--w1), var(--line) var(--w1) 100%); }
 #scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); }
@@ -155,7 +155,7 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
 .playhead .field { min-width: 220px; flex: 1; }
 
 @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } .transport { grid-template-columns: auto auto 1fr; } .transport #speed { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } .transport { grid-template-columns: auto auto 1fr; } .transport #speed, .transport #view { grid-column: auto; } }
 @media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
 </style>
 </head>
@@ -243,7 +243,9 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
         <button id="restart" type="button">Restart</button>
         <input id="scrub" type="range" min="0" max="100" step="0.01" aria-label="Day of season">
         <select id="speed" aria-label="Playback speed"><option value="6">Slow</option><option value="12" selected>Normal</option><option value="30">Fast</option></select>
+        <select id="view" aria-label="View"><option value="3d" selected>3D view</option><option value="flat">Side view</option></select>
       </div>
+      <p class="hint" id="sceneHint">Drag the scene to turn it.</p>
       <p class="hint">Gold on the slider and charts marks the critical window around silking. Drag any chart to scrub.</p>
     </div>
     <section class="card">
@@ -314,7 +316,7 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
     <div id="valOut" class="tblwrap" style="margin-top:10px"></div>
   </details>
 
-  <p class="notes">What this is: a simplified, transparent crop model (thermal-time phenology, radiation-use growth, a layered water balance, a nitrogen pool, critical-window grain set, stand and depth effects), not DSSAT or APSIM. Weather is real daily data from Open-Meteo for every year since 1991 at the chosen point, run for each plan, so the spread you see is real weather spread. Soil comes from SoilGrids for pins and generic textures for presets, with a deep layer added below the mapped metre. Maize is calibrated to central Iowa: average yield, the size of the water gap, the nitrogen optimum, and the best seeding rate and sowing window. Wheat is only roughly calibrated and tends to run high in dry regions; use the check above. The model has no pests, disease, lodging, compaction, or waterlogging, no previous-crop nitrogen credit, and yields do not include the technology trend, so read differences between plans more than absolute levels. Southern pins run on a mirrored calendar. The season-to-date option splices the real weather so far with the rest of the season from each past year. Open-Meteo's archive trails real time by about a week.</p>
+  <p class="notes">What this is: a simplified, transparent crop model (thermal-time phenology, radiation-use growth, a layered water balance, a nitrogen pool, critical-window grain set, stand and depth effects), not DSSAT or APSIM. Weather is real daily data from Open-Meteo for every year since 1991 at the chosen point, run for each plan, so the spread you see is real weather spread. Soil comes from SoilGrids for pins and generic textures for presets, with a deep layer added below the mapped metre. Maize is calibrated to central Iowa: average yield, the size of the water gap, the nitrogen optimum, and the best seeding rate and sowing window. Wheat is calibrated more loosely than maize: yields in dry regions such as Kansas are still on the high side of the published state averages, and the check above shows how far off. The model has no pests, disease, lodging, compaction, or waterlogging, no previous-crop nitrogen credit, and yields do not include the technology trend, so read differences between plans more than absolute levels. Southern pins run on a mirrored calendar. The season-to-date option splices the real weather so far with the rest of the season from each past year. Open-Meteo's archive trails real time by about a week.</p>
 </div>
 <script>/*APP*/</script>
 </body>

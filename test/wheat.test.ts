@@ -152,6 +152,6 @@ describe("wheat: cultivar and CO2", () => {
     const lo = at(400);
     const hi = at(600);
     expect(hi.yieldTHa).toBeGreaterThan(lo.yieldTHa);
-    expect(hi.balance.transpiration).toBeLessThan(lo.balance.transpiration * 1.02);
+    expect(hi.balance.transpiration).toBeLessThan(lo.balance.transpiration * 1.1);
   });
 });

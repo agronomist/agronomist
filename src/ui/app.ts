@@ -4,7 +4,8 @@ import { LOCATIONS, DEFAULT_LOCATION, climateFacts, availableWaterMm, locationBy
 import { loadPin, PinError } from "./pin";
 import { createPinMap, type PinMap } from "./map";
 import { CROPS, runSeason, type CropKey, type Run, type Settings } from "./model-run";
-import { drawScene, frameAt } from "./scene";
+import { drawBanners, drawScene, frameAt } from "./scene";
+import { createScene3D, type Scene3D } from "./scene3d";
 import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
@@ -44,6 +45,9 @@ let lastTheme = 0;
 
 const scene = $("scene") as HTMLCanvasElement;
 const sctx = scene.getContext("2d")!;
+let view3d = true;
+let scene3d: Scene3D | null = null;
+let size3d = "";
 const chartEls: [ChartKind, HTMLCanvasElement][] = [
   ["weather", $("c-weather")],
   ["light", $("c-light")],
@@ -347,9 +351,25 @@ function frame(now: number) {
     if (changed) drawPlots();
     lastTheme = now;
   }
-  resizeScene();
   const fr = frameAt(run, t);
-  drawScene(sctx, scene.clientWidth, scene.clientHeight, run, fr, run.cfg.art, now / 1000, calm);
+  if (view3d) {
+    scene3d ??= createScene3D(scene, () => (dirty = true));
+    const w = scene.clientWidth;
+    const h = scene.clientHeight;
+    const key = `${w}x${h}x${window.devicePixelRatio}`;
+    if (key !== size3d) {
+      scene3d.setSize(w, h);
+      size3d = key;
+    }
+    scene3d.render(run, fr, now / 1000, calm);
+    const dpr = window.devicePixelRatio || 1;
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawBanners(sctx, w, run, fr, now / 1000, calm, w * (0.12 + 0.76 * fr.progress));
+  } else {
+    scene.style.background = "";
+    resizeScene();
+    drawScene(sctx, scene.clientWidth, scene.clientHeight, run, fr, run.cfg.art, now / 1000, calm);
+  }
   if (dirty) {
     for (const [k, c] of chartEls) drawChart(c, k, run, t, theme);
     updateReadouts();
@@ -710,6 +730,12 @@ function init() {
     scheduleRefresh();
   });
   $("optimize").addEventListener("click", () => void runOptimize());
+  $("view").addEventListener("input", () => {
+    view3d = ($("view") as HTMLSelectElement).value === "3d";
+    size3d = "";
+    scene.style.cursor = view3d ? "grab" : "";
+    $("sceneHint").textContent = view3d ? "Drag the scene to turn it." : "Soil layers darken as they hold more water.";
+  });
   $("inSeason").addEventListener("change", () => {
     useIn = ($("inSeason") as HTMLInputElement).checked;
     scheduleRefresh();

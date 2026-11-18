@@ -279,7 +279,12 @@ export function drawScene(
     }
   }
 
-  // ---- Banner while the critical window is open ----
+  drawBanners(ctx, W, run, fr, time, calm, sunX);
+}
+
+/** The two overlay banners; shared by the side view and the 3D view. */
+export function drawBanners(ctx: CanvasRenderingContext2D, W: number, run: Run, fr: Frame, time: number, calm: boolean, sunX: number) {
+  const st = fr.state;
   if (st.inWindow) {
     const label = `CRITICAL WINDOW: ${run.cfg.grainWord} number is being set`;
     ctx.font = "600 12px IBM Plex Sans, system-ui, sans-serif";

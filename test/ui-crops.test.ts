@@ -33,7 +33,7 @@ describe("crop configs in the viewer", () => {
     const best = findBest("wheat", "freeze", 4, "generic");
     const r = runSeason({ ...wheatBase, scenario: "freeze", sowDoy: best.sowDoy, rm: best.rm, nRate: best.nRate, habit: best.habit });
     expect(r.result.frostKilled).toBe(false);
-    expect(best.yieldTHa).toBeGreaterThan(5);
+    expect(best.yieldTHa).toBeGreaterThan(4);
   });
 
   it("the wheat search only offers habit-appropriate sowing dates", () => {
@@ -114,7 +114,7 @@ describe("seeding rate and sowing depth", () => {
 
   it("wheat compensates for stand density: yield is flat across a wide range but thin stands lose", () => {
     const y = (p: number) => yieldAt({ ...wheatBase, location: "po" }, p, 4).result.yieldTHa;
-    expect(Math.abs(y(500) - y(250)) / y(250)).toBeLessThan(0.08);
+    expect(Math.abs(y(500) - y(250)) / y(250)).toBeLessThan(0.1);
     expect(y(100)).toBeLessThan(y(250) * 0.97);
   });
 

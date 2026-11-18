@@ -21,7 +21,7 @@ export const wheatWinterDefaults: CropParams = {
 
   k: 0.6,
   sla: 0.02,
-  rue: 3.5, // gross
+  rue: 3.0, // gross
   parFraction: 0.5,
   tempResponse: [0, 12, 22, 35],
   initialBiomass: 4,
@@ -79,9 +79,9 @@ export const wheatWinterDefaults: CropParams = {
   ],
   leafSenescenceRate: 0.0012,
 
-  kcb: 1.1,
+  kcb: 1.2,
   depletionP: 0.55,
-  rootDepthMax: 1000,
+  rootDepthMax: 800,
   rootDecay: 3,
   rootDepthInitial: 200,
   laiMax: 6,
