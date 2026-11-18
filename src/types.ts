@@ -60,6 +60,8 @@ export interface CropParams {
   // --- Heat stress on grain set around silking ---
   heatThreshold: number; // daily Tmax (°C) above which damage accrues
   heatDamageRate: number; // fraction of kernel set lost per °C above threshold per day, inside the critical window
+  /** Fraction of the grain stored before the kernel count is set that is lost in proportion to heat damage (aborted kernels). Default 0. */
+  heatStorageLoss?: number;
 
   // --- Critical period and kernel set (Andrade-type: kernel number follows crop growth rate around silking) ---
   kernelWindowBefore: number; // °C d before silking at which the critical window opens

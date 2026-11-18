@@ -320,7 +320,8 @@ export function simulate(input: SimulationInput): SimulationResult {
         cp.cgr += growth;
         if (w.tmax > p.heatThreshold) {
           cp.hot++;
-          heatDamage += (w.tmax - p.heatThreshold) * p.heatDamageRate;
+          // a water-stressed canopy runs warmer, so the same air temperature does more damage (Lobell et al. 2011 found 1.7x the damage under drought)
+          heatDamage += (w.tmax - p.heatThreshold) * p.heatDamageRate * (1 + 0.5 * (1 - ws));
         }
       }
       grainSet = clamp(1 - heatDamage, 0, 1);
@@ -357,6 +358,12 @@ export function simulate(input: SimulationInput): SimulationResult {
         windowClosed = true;
         const meanCgr = cp.days > 0 ? cp.cgr / cp.days : 0;
         kernels = clamp(p.kernelSlope * (meanCgr - p.kernelCgrThreshold * setScale.threshold), 0, p.kernelMax * setScale.max) * grainSet;
+        // kernels aborted by heat take the assimilate already stored for them with them
+        if (p.heatStorageLoss) {
+          const lost = storage * (1 - grainSet) * p.heatStorageLoss;
+          storage -= lost;
+          deadLeaf += lost; // residue, so the biomass balance stays exact
+        }
         sinkCap = storage + kernels * p.potentialKernelWeight;
       }
     }

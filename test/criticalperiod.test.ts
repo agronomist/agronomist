@@ -77,8 +77,9 @@ describe("where the window falls matters", () => {
     const late = sim(sowAt(120, { heatWave: { startDoy: endDoy + 30, endDoy: endDoy + 42, addC: 10 } }));
     expect(hot.criticalPeriod.hotDays).toBeGreaterThan(0);
     expect(hot.criticalPeriod.heatSetFactor).toBeLessThan(1);
-    expect(late.criticalPeriod.hotDays).toBe(0);
-    expect(late.criticalPeriod.heatSetFactor).toBe(1);
+    // heat after the window closes changes nothing about the window itself
+    expect(late.criticalPeriod.hotDays).toBe(base.criticalPeriod.hotDays);
+    expect(late.criticalPeriod.heatSetFactor).toBeCloseTo(base.criticalPeriod.heatSetFactor, 10);
     expect(hot.yieldTHa).toBeLessThan(late.yieldTHa);
   });
 

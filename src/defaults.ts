@@ -29,8 +29,9 @@ export const maizeDefaults: CropParams = {
   co2AssimilationSensitivity: 0.03, // placeholder
   co2TranspirationSensitivity: -0.05, // placeholder
 
-  heatThreshold: 35,
-  heatDamageRate: 0.04,
+  heatThreshold: 30,
+  heatDamageRate: 0.008,
+  heatStorageLoss: 0.7,
 
   kernelWindowBefore: 200, // about 2 weeks before silking in warm weather
   kernelWindowAfter: 150, // about 10 days after

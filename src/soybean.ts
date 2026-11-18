@@ -30,8 +30,9 @@ export const soybeanDefaults: CropParams = {
   co2AssimilationSensitivity: 0.1,
   co2TranspirationSensitivity: -0.08,
 
-  heatThreshold: 35,
-  heatDamageRate: 0.03,
+  heatThreshold: 30,
+  heatDamageRate: 0.008,
+  heatStorageLoss: 0.7,
 
   kernelWindowBefore: 60,
   kernelWindowAfter: 450, // R1 to about R5: flowers, pods and early seeds are all being set

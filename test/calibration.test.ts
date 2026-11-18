@@ -3,6 +3,7 @@ import { CROPS } from "../src/ui/crops";
 import { syntheticEnsemble } from "../src/ui/ensemble";
 import { DEFAULT_PRICES, evaluate, meanLosses, nResponse, type Option } from "../src/ui/decision";
 import { locationByKey, soilFor } from "../src/ui/locations";
+import { simulateOption } from "../src/ui/model-run";
 
 /**
  * Level checks against published figures, run on thirty synthetic seasons drawn around central Iowa's climate normals.
@@ -102,5 +103,35 @@ describe("continuous cropping", () => {
     const same = evaluate(cfg, loc, soil, { ...o, prev: "same" }, ens, DEFAULT_PRICES.maize).yield.mean;
     expect(same / rot).toBeLessThan(0.97);
     expect(same / rot).toBeGreaterThan(0.8);
+  });
+});
+
+describe("heat sensitivity against published figures", () => {
+  // Lobell et al. 2011 (Nature Climate Change): each degree day above 30 C cut maize yield 1% (good rain-fed) to 1.7% (drought),
+  // counted hourly. Counted from daily Tmax the same loss is a smaller number per degree day, so the check is a band, not a point.
+  // Schlenker and Roberts 2009 (PNAS): yield rises to about 29 C (corn) and 30 C (soybean), then falls steeply.
+  const cfg = CROPS.maize;
+  const loc = locationByKey("iowa");
+  const soil = soilFor(loc);
+  const ens = syntheticEnsemble(cfg, loc, 12);
+  const o: Option = { id: "h", name: "H", sowDoy: 120, rm: 110, nRate: 200, seedingRate: 8, depthCm: 5, habit: "winter" };
+  const loss = (dry: boolean) => {
+    let l = 0, e = 0;
+    for (const y of ens.years) {
+      const base = dry ? y.weather.map((x) => ({ ...x, rain: x.rain * 0.4 })) : y.weather;
+      const y0 = simulateOption(cfg, loc, soil, o, base).yieldTHa;
+      let add = 0;
+      const hot = base.map((x) => (x.doy >= 195 && x.doy <= 201 ? ((add += Math.max(0, x.tmax + 4 - 30) - Math.max(0, x.tmax - 30)), { ...x, tmax: x.tmax + 4 }) : x));
+      l += (y0 - simulateOption(cfg, loc, soil, o, hot).yieldTHa) / y0 * 100;
+      e += add;
+    }
+    return l / e; // % yield per degree day above 30 C (daily Tmax) added in the silking week
+  };
+  it("loses 0.1 to 0.6 % of yield per extra degree day above 30 C in the silking week", () => {
+    expect(loss(false)).toBeGreaterThan(0.1);
+    expect(loss(false)).toBeLessThan(0.6);
+  });
+  it("loses more per degree day in drought than with normal rain", () => {
+    expect(loss(true)).toBeGreaterThan(loss(false) * 1.2);
   });
 });
