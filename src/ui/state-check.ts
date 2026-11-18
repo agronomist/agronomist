@@ -1,8 +1,9 @@
 import { buildSoilParams, fetchSoilPoint, type SoilParams } from "../index";
+import type { SoilPointProfile } from "../data/soilgrids";
 import type { CropKey } from "./crops";
 import { CROPS } from "./crops";
 import { evaluate, type Prices } from "./decision";
-import { loadEnsembles } from "./ensemble";
+import { historyFor, loadEnsembles } from "./ensemble";
 import { locationByKey, registerLocation, soilFor, type Location } from "./locations";
 import type { Management } from "./model-run";
 import { sowingDays } from "./planting";
@@ -23,14 +24,48 @@ export interface StateRow {
 }
 
 const soils = new Map<string, Promise<SoilParams | null>>();
+const profiles = new Map<string, SoilPointProfile>();
+const soilKey = (lat: number, lon: number) => `${lat.toFixed(2)},${lon.toFixed(2)}`;
 function pointSoil(lat: number, lon: number): Promise<SoilParams | null> {
-  const k = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const k = soilKey(lat, lon);
   let p = soils.get(k);
   if (!p) {
-    p = fetchSoilPoint(lat, lon, { timeoutMs: 10000, retries: 0 }).then((s) => buildSoilParams([s]), () => null);
+    p = fetchSoilPoint(lat, lon, { timeoutMs: 10000, retries: 0 }).then(
+      (s) => {
+        profiles.set(k, s);
+        return buildSoilParams([s]);
+      },
+      () => null,
+    );
     soils.set(k, p);
   }
   return p;
+}
+/** Soil profiles fetched so far, keyed "lat,lon". */
+export const fetchedSoilProfiles = (): Map<string, SoilPointProfile> => new Map(profiles);
+/** Put a saved soil profile into the cache without fetching it. */
+export function seedSoilProfile(lat: number, lon: number, s: SoilPointProfile | null) {
+  const k = soilKey(lat, lon);
+  if (s) profiles.set(k, s);
+  soils.set(k, Promise.resolve(s ? buildSoilParams([s]) : null));
+}
+
+/** Fetch the weather and soil of every point of every state (and each crop's preset place) so a snapshot can be saved. */
+export async function collectAll(onProgress: (msg: string) => void): Promise<void> {
+  const locs: Location[] = [];
+  for (const c of Object.keys(CROPS) as CropKey[]) for (const s of seriesFor(c)) locs.push(locationByKey(s.location));
+  const pts = STATE_PROFILES.flatMap((p) => p.points.map((pt) => ({ lat: pt.lat, lon: pt.lon, tag: `${p.state} ${pt.name}` })));
+  const total = locs.length + pts.length;
+  let n = 0;
+  for (const l of locs) {
+    onProgress(`weather for ${l.name} (${++n} of ${total})…`);
+    await historyFor(l).catch(() => undefined);
+  }
+  for (const pt of pts) {
+    onProgress(`weather and soil for ${pt.tag} (${++n} of ${total})…`);
+    await historyFor({ lat: pt.lat, lon: pt.lon } as Location).catch(() => undefined);
+    await pointSoil(pt.lat, pt.lon);
+  }
 }
 
 /**

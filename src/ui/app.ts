@@ -12,7 +12,8 @@ import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, str
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate, type ValidationResult } from "./validation";
 import { componentCheck, rowOk } from "./component-check";
-import { runStateCheck, type StateRow } from "./state-check";
+import { collectAll, runStateCheck, type StateRow } from "./state-check";
+import { buildSnapshot } from "./snapshot";
 import { inject } from "@vercel/analytics";
 import { createEasy, type Easy } from "./easy";
 
@@ -723,6 +724,30 @@ async function runValidationAll() {
     `<textarea readonly rows="${rows.length + 2}" style="width:100%;font:12px monospace" onfocus="this.select()">${csv}</textarea>`;
 }
 
+async function saveSnapshot() {
+  const out = $("snapOut");
+  try {
+    await collectAll((m) => (out.textContent = `Fetching ${m}`));
+    out.textContent = "Packing…";
+    const text = JSON.stringify(await buildSnapshot());
+    let blob = new Blob([text], { type: "application/json" });
+    let name = "agronomist-snapshot.json";
+    if (typeof CompressionStream !== "undefined") {
+      blob = await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"))).blob();
+      name += ".gz";
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.textContent = `Download ${name} (${(blob.size / 1e6).toFixed(1)} MB)`;
+    out.textContent = "";
+    out.appendChild(a);
+    a.click();
+  } catch (e) {
+    out.textContent = `The snapshot stopped: ${e instanceof Error ? e.message : e}`;
+  }
+}
+
 function readPrice(id: string, fallback: number) {
   const v = Number(($(id) as HTMLInputElement).value);
   return Number.isFinite(v) && v >= 0 ? v : fallback;
@@ -857,6 +882,11 @@ function init() {
     const b = e.target as HTMLButtonElement;
     b.disabled = true;
     void runValidationAll().finally(() => (b.disabled = false));
+  });
+  $("runSnap").addEventListener("click", (e) => {
+    const b = e.target as HTMLButtonElement;
+    b.disabled = true;
+    void saveSnapshot().finally(() => (b.disabled = false));
   });
   const yc = $("c-years") as HTMLCanvasElement;
   yc.addEventListener("click", (e) => {

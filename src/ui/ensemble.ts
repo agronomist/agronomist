@@ -93,17 +93,38 @@ export interface LoadedEnsembles {
   inSeason: Ensemble | null;
 }
 
+/** The weather record for a place, fetched once and kept. Failed fetches are not kept. */
+export function historyFor(loc: Location, o: HttpOptions = {}): Promise<History> {
+  let p = histories.get(hkey(loc));
+  if (!p) {
+    p = fetchHistory(loc.lat, loc.lon, o);
+    histories.set(hkey(loc), p);
+    p.catch(() => histories.delete(hkey(loc)));
+  }
+  return p;
+}
+
+/** Put a record into the cache without fetching it (used when a saved snapshot is loaded). */
+export const seedHistory = (lat: number, lon: number, h: History) => void histories.set(`${lat.toFixed(2)},${lon.toFixed(2)}`, Promise.resolve(h));
+
+/** Every record fetched so far, keyed "lat,lon". */
+export async function fetchedHistories(): Promise<Map<string, History>> {
+  const out = new Map<string, History>();
+  for (const [k, p] of histories) {
+    try {
+      out.set(k, await p);
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
+}
+
 /** Fetch (once per place) the weather record and build the ensembles; any failure falls back to synthetic years with a note. */
 export async function loadEnsembles(cfg: CropConfig, loc: Location, o: HttpOptions & { now?: Date } = {}): Promise<LoadedEnsembles> {
   if (loc.synthetic) return { base: syntheticEnsemble(cfg, loc, 30, "The test field has no real weather record, so these are 30 synthetic seasons."), inSeason: null };
   try {
-    let p = histories.get(hkey(loc));
-    if (!p) {
-      p = fetchHistory(loc.lat, loc.lon, o);
-      histories.set(hkey(loc), p);
-      p.catch(() => histories.delete(hkey(loc)));
-    }
-    const h = await p;
+    const h = await historyFor(loc, o);
     const base = realEnsemble(cfg, loc, h);
     if (base.years.length < 10) throw new Error(`only ${base.years.length} complete seasons in the record`);
     return { base, inSeason: inSeasonEnsemble(cfg, loc, h) };
