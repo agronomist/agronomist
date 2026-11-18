@@ -1,1 +1,0 @@
-,requestAnimationFrame(frame2)}var start=d=>{init()};hot?.ready?hot.ready(start):start(hot?.data??{});})();
