@@ -49,6 +49,23 @@ function trimTrailingNulls(json: unknown): unknown {
   return { ...(json as object), daily: out };
 }
 
+let relayBroken = false;
+/**
+ * On the hosted site, ask the site's own relay first (it holds the paid key, so it is not rate limited); if the relay is
+ * missing or fails, or outside a browser, go to the public archive directly.
+ */
+async function getArchive(url: string, o: HttpOptions): Promise<unknown> {
+  const loc = (globalThis as unknown as { location?: { protocol: string } }).location;
+  if (!relayBroken && o.fetch === undefined && loc && /^https?:/.test(loc.protocol)) {
+    try {
+      return await getJson(url.replace(/^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/, "/api/om"), { ...o, retries: 1 });
+    } catch {
+      relayBroken = true;
+    }
+  }
+  return getJson(url, o);
+}
+
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
@@ -69,7 +86,7 @@ export async function fetchHistory(
     const y1 = Math.min(lastYear, y + 11);
     const endDate = y1 === lastYear ? iso(end) : `${y1}-12-31`;
     jobs.push(
-      getJson(openMeteoUrl(lat, lon, `${y}-01-01`, endDate), o).then((raw) => {
+      getArchive(openMeteoUrl(lat, lon, `${y}-01-01`, endDate), o).then((raw) => {
         const json = trimTrailingNulls(raw);
         const times = (json as { daily: { time: string[] } }).daily.time;
         return { times, days: times.length ? parseOpenMeteo(json) : [] };
