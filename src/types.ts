@@ -174,6 +174,19 @@ export interface SoilParams {
   drainFraction?: number;
   /** Pore space between field capacity and saturation, m3 m-3 (default 0.12). Only matters when `drainFraction` is below 1. */
   extraPorosity?: number;
+  /** A water table that can rise into the root zone by capillary flux in dry spells (Rizzo et al. 2018: shallow water tables buffer rain-free periods in the Corn Belt). */
+  waterTable?: WaterTable;
+}
+
+export interface WaterTable {
+  /** Depth to the water table at sowing, cm */
+  depthCm: number;
+  /** How fast it deepens over the season, cm per day (default 0) */
+  deepeningCmPerDay?: number;
+  /** Height of the capillary fringe above the table, cm (default 40) */
+  fringeCm?: number;
+  /** Largest daily rise when the table is within the root zone, mm (default 3) */
+  maxRiseMm?: number;
 }
 
 /** Automatic irrigation: when the root zone has dried below `trigger`, apply `amountMm` until `maxSeasonMm` is used. */
@@ -282,6 +295,8 @@ export interface SimulationResult {
     transpiration: number;
     soilEvap: number;
     drainage: number;
+    /** Water that rose from a water table into the root zone, mm (0 without one) */
+    capillary: number;
     /** Change in soil water storage (end minus start), mm */
     storageChange: number;
   };

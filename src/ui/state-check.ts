@@ -77,6 +77,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
         irr,
         free: run(loc, soil, e.base, plan),
         poor: prof.untiledWet > 0 ? run(loc, soil, e.base, { ...plan, poorDrainage: true }) : undefined,
+        wt: prof.shallowWT > 0 ? run(loc, soil, e.base, { ...plan, shallowWT: true }) : undefined,
         irrigated: irr > 0 ? run(loc, soil, e.base, { ...plan, irrigated: true }) : undefined,
       });
       timedRuns.push({
@@ -84,6 +85,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
         irr,
         free: runTimed(loc, soil, e.base, plan),
         poor: prof.untiledWet > 0 ? runTimed(loc, soil, e.base, { ...plan, poorDrainage: true }) : undefined,
+        wt: prof.shallowWT > 0 ? runTimed(loc, soil, e.base, { ...plan, shallowWT: true }) : undefined,
         irrigated: irr > 0 ? runTimed(loc, soil, e.base, { ...plan, irrigated: true }) : undefined,
       });
     }

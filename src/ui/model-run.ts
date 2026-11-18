@@ -46,6 +46,8 @@ export interface Management {
   irrigated?: boolean;
   /** Naturally poorly drained field without tile. Used for state averages, not offered as a control. */
   poorDrainage?: boolean;
+  /** Soil with a shallow water table that rises into the root zone in dry spells. Used for state averages, not offered as a control. */
+  shallowWT?: boolean;
 }
 
 /** Counterfactual switches used to split yield losses; every one defaults to the real thing. */
@@ -57,6 +59,9 @@ export interface Tweaks {
   /** Soil nitrogen never limits. */
   noNLimit?: boolean;
 }
+
+/** A table about a metre down at sowing that sinks half a centimetre a day. Depth, sinking rate and the 2 mm a day rise were set so 30 percent of land on such soils gives a regional lift near Rizzo et al. 2018 (6 percent on average, 24 in severe drought); they are placeholders, not measurements (see test/water-table.test.ts for the check against Rizzo et al. 2018). */
+export const SHALLOW_WATER_TABLE = { depthCm: 100, deepeningCmPerDay: 0.5, fringeCm: 40, maxRiseMm: 2 };
 
 /** One simulation of an option on one weather year (the array starts on the crop's model start day). */
 export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams, m: Management, season: WeatherDay[], tw: Tweaks = {}): SimulationResult {
@@ -76,6 +81,7 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
   if (tw.noNLimit) sl = { ...sl, mineralizationRate: undefined };
   if (tw.noWaterLimit) sl = { ...sl, initialFraction: 1 };
   if (m.poorDrainage) sl = { ...sl, drainFraction: 0.08 };
+  if (m.poorDrainage || m.shallowWT) sl = { ...sl, waterTable: SHALLOW_WATER_TABLE };
   let weather = season.slice(m.sowDoy - cfg.yearStart);
   if (tw.noWaterLimit) weather = weather.map((w) => ({ ...w, rain: Math.max(w.rain, 12) }));
   return simulate({

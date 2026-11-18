@@ -124,7 +124,7 @@ export function simulate(input: SimulationInput): SimulationResult {
   let cumulativeGrowth = 0;
   let cumulativeGross = 0;
   let cumulativeResp = 0;
-  const bal = { rain: 0, irrigation: 0, transpiration: 0, soilEvap: 0, drainage: 0 };
+  const bal = { rain: 0, irrigation: 0, transpiration: 0, soilEvap: 0, drainage: 0, capillary: 0 };
   const days: DayOutput[] = [];
 
   for (let i = 0; i < weather.length && !matured && !frostKilled; i++) {
@@ -198,6 +198,22 @@ export function simulate(input: SimulationInput): SimulationResult {
     const drainage = inflow;
     const nLeached = inflowN;
     nBal.leached += nLeached;
+
+    // ---- Capillary rise from a water table into the rooted layers, deepest first, up to field capacity ----
+    const wt = soil.waterTable;
+    if (wt && emerged) {
+      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      const fringe = (wt.fringeCm ?? 40) * 10; // cm to mm, like the root depth
+      const depth = (wt.depthCm + (wt.deepeningCmPerDay ?? 0) * i) * 10;
+      let q = (wt.maxRiseMm ?? 3) * clamp((rd + fringe - depth) / fringe, 0, 1);
+      for (let l = L.length - 1; l >= 0 && q > 1e-9; l--) {
+        if (rd <= tops[l]!) continue;
+        const add = Math.min(q, Math.max(0, fc[l]! - sw[l]!));
+        sw[l]! += add;
+        q -= add;
+        bal.capillary += add;
+      }
+    }
 
     // ---- Canopy state at start of day ----
     const fi = emerged ? proc.lightInterception(leaf * p.sla, p) : 0;

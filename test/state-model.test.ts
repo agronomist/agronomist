@@ -8,20 +8,20 @@ const m = (v: number) => new Map([[2000, v], [2001, v + 1]]);
 describe("stateYields", () => {
   it("is the weighted mean of the free runs in 'points' mode", () => {
     const runs: PointRuns[] = [{ w: 0.25, irr: 0, free: m(8) }, { w: 0.75, irr: 0, free: m(12) }];
-    const y = stateYields(runs, { untiledWet: 0 }, "points");
+    const y = stateYields(runs, { untiledWet: 0, shallowWT: 0 }, "points");
     expect(y.get(2000)).toBeCloseTo(11, 10);
     expect(y.get(2001)).toBeCloseTo(12, 10);
   });
   it("mixes in irrigated and poorly drained shares in 'full' mode", () => {
     const runs: PointRuns[] = [{ w: 1, irr: 0.5, free: m(10), poor: m(8), irrigated: m(14) }];
     // rain-fed half: 0.8*10 + 0.2*8 = 9.6 ; irrigated half: 14
-    expect(stateYields(runs, { untiledWet: 0.2 }, "full").get(2000)).toBeCloseTo(0.5 * 9.6 + 0.5 * 14, 10);
-    expect(stateYields(runs, { untiledWet: 0.2 }, "points").get(2000)).toBeCloseTo(10, 10);
+    expect(stateYields(runs, { untiledWet: 0.2, shallowWT: 0 }, "full").get(2000)).toBeCloseTo(0.5 * 9.6 + 0.5 * 14, 10);
+    expect(stateYields(runs, { untiledWet: 0.2, shallowWT: 0 }, "points").get(2000)).toBeCloseTo(10, 10);
   });
   it("uses only years every point has", () => {
     const a: PointRuns = { w: 0.5, irr: 0, free: new Map([[2000, 10], [2001, 11]]) };
     const b: PointRuns = { w: 0.5, irr: 0, free: new Map([[2001, 9]]) };
-    expect([...stateYields([a, b], { untiledWet: 0 }, "points").keys()]).toEqual([2001]);
+    expect([...stateYields([a, b], { untiledWet: 0, shallowWT: 0 }, "points").keys()]).toEqual([2001]);
   });
 });
 

@@ -8,6 +8,7 @@ export interface PointRuns {
   irr: number;
   free: Map<number, number>;
   poor?: Map<number, number>;
+  wt?: Map<number, number>;
   irrigated?: Map<number, number>;
 }
 
@@ -17,7 +18,7 @@ export const irrShare = (crop: CropKey, irrCorn: number) => Math.min(1, irrCorn 
  * State-average yield per year. "points" is the weighted average of rain-fed, freely drained fields. "full" also mixes in the
  * irrigated share and, for the rain-fed rest, the poorly drained untiled share.
  */
-export function stateYields(runs: PointRuns[], p: Pick<StateProfile, "untiledWet">, mode: "points" | "full"): Map<number, number> {
+export function stateYields(runs: PointRuns[], p: Pick<StateProfile, "untiledWet" | "shallowWT">, mode: "points" | "full"): Map<number, number> {
   const years = [...runs[0]!.free.keys()].filter((y) => runs.every((r) => r.free.has(y)));
   const wsum = runs.reduce((a, r) => a + r.w, 0);
   const out = new Map<number, number>();
@@ -25,7 +26,9 @@ export function stateYields(runs: PointRuns[], p: Pick<StateProfile, "untiledWet
     let v = 0;
     for (const r of runs) {
       const free = r.free.get(y)!;
-      const rainfed = mode === "full" && r.poor?.has(y) ? (1 - p.untiledWet) * free + p.untiledWet * r.poor.get(y)! : free;
+      const poorV = mode === "full" && r.poor?.has(y) ? r.poor.get(y)! : free;
+      const wtV = mode === "full" && r.wt?.has(y) ? r.wt.get(y)! : free;
+      const rainfed = mode === "full" ? (1 - p.untiledWet - p.shallowWT) * free + p.untiledWet * poorV + p.shallowWT * wtV : free;
       const here = mode === "full" && r.irrigated?.has(y) ? (1 - r.irr) * rainfed + r.irr * r.irrigated.get(y)! : rainfed;
       v += (r.w / wsum) * here;
     }
