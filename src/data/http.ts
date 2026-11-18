@@ -12,6 +12,8 @@ export interface HttpOptions {
   retries?: number;
   /** Injectable sleep (ms) so tests do not wait. */
   sleep?: (ms: number) => Promise<void>;
+  /** Give up on one attempt after this many ms (a hung server otherwise waits forever). Default 25000. */
+  timeoutMs?: number;
 }
 
 export class HttpError extends Error {
@@ -22,6 +24,14 @@ export class HttpError extends Error {
     super(message);
     this.name = "HttpError";
   }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let t: ReturnType<typeof setTimeout>;
+  const timer = new Promise<never>((_, rej) => {
+    t = setTimeout(() => rej(new Error(`no answer after ${Math.round(ms / 1000)} s`)), ms);
+  });
+  return Promise.race([p, timer]).finally(() => clearTimeout(t));
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -35,7 +45,7 @@ export async function getJson(url: string, o: HttpOptions = {}): Promise<unknown
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await f(url);
+      const res = await withTimeout(f(url), o.timeoutMs ?? 25000);
       if (res.ok) return await res.json();
       if (res.status !== 429 && res.status < 500) throw new HttpError(`HTTP ${res.status}`, res.status);
       lastErr = new HttpError(`HTTP ${res.status}`, res.status);

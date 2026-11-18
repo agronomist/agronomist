@@ -155,10 +155,17 @@ let pinSeq = 0;
 async function usePin(lat: number, lon: number) {
   const seq = ++pinSeq;
   const msg = $("mapMsg");
-  msg.textContent = `Fetching weather since 1991 and soil layers for ${lat.toFixed(2)}, ${lon.toFixed(2)}…`;
+  const go = $("coordForm").querySelector("button") as HTMLButtonElement;
+  go.disabled = true;
+  go.textContent = "Loading…";
+  ($("coordIn") as HTMLInputElement).value = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+  msg.classList.remove("err");
+  msg.textContent = `Fetching weather since 1991 and soil layers for ${lat.toFixed(2)}, ${lon.toFixed(2)}. This can take up to 30 seconds.`;
   try {
     const loc = await loadPin(lat, lon);
     if (seq !== pinSeq) return;
+    go.disabled = false;
+    go.textContent = "Go";
     setPinOption(loc.key, `Your pin, ${loc.region}`);
     locKey = loc.key;
     history.replaceState(null, "", `#pin=${lat.toFixed(3)},${lon.toFixed(3)}`);
@@ -168,6 +175,9 @@ async function usePin(lat: number, lon: number) {
     msg.textContent = `Pin set at ${loc.region}. Click again to move it. ${loc.blurb.includes("generic loam") ? "No soil data here, so a generic loam is used." : ""}`.trim();
   } catch (e) {
     if (seq !== pinSeq) return;
+    go.disabled = false;
+    go.textContent = "Go";
+    msg.classList.add("err");
     msg.textContent = e instanceof PinError ? e.message : `Could not load data for this point (${e instanceof Error ? e.message : e}). Your previous location is unchanged.`;
   }
 }
@@ -688,7 +698,8 @@ function init() {
     ev.preventDefault();
     const c = parseCoords(($("coordIn") as HTMLInputElement).value);
     if (!c) {
-      $("mapMsg").textContent = "Type latitude and longitude as two numbers, like 42.03, -93.62.";
+      $("mapMsg").classList.add("err");
+      $("mapMsg").textContent = ($("coordIn") as HTMLInputElement).value.trim() ? "Type latitude and longitude as two numbers, like 42.03, -93.62." : "Nothing to go to yet. Click the map to drop a pin, or type latitude and longitude like 42.03, -93.62.";
       return;
     }
     void usePin(c[0], c[1]);

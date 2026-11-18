@@ -35,7 +35,7 @@ export async function loadPin(lat: number, lon: number, o: HttpOptions & { world
     fetchClimate(lat, lon, o, calShift).catch((e) => {
       throw new PinError(`Could not get weather for this point (${e instanceof Error ? e.message : e}).`);
     }),
-    fetchSoilPoint(lat, lon, o).then(
+    fetchSoilPoint(lat, lon, { ...o, timeoutMs: o.timeoutMs ?? 10000, retries: o.retries ?? 0 }).then(
       (p) => ({ ok: true as const, p }),
       (e) => ({ ok: false as const, why: e instanceof Error ? e.message : String(e) }),
     ),
