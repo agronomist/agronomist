@@ -4,7 +4,7 @@ import { LOCATIONS, DEFAULT_LOCATION, climateFacts, availableWaterMm, locationBy
 import { loadPin, PinError } from "./pin";
 import { createPinMap, type PinMap } from "./map";
 import { CROPS, runSeason, type CropKey, type Management, type Run, type Settings } from "./model-run";
-import { drawBanners, drawScene, frameAt } from "./scene";
+import { drawScene, frameAt, sceneTag } from "./scene";
 import { createScene3D, type Scene3D } from "./scene3d";
 import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
@@ -422,13 +422,21 @@ function frame(now: number) {
       size3d = key;
     }
     scene3d.render(run, fr, now / 1000, calm);
-    const dpr = window.devicePixelRatio || 1;
-    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawBanners(sctx, w, run, fr, now / 1000, calm, w * (0.12 + 0.76 * fr.progress));
   } else {
     scene.style.background = "";
     resizeScene();
     drawScene(sctx, scene.clientWidth, scene.clientHeight, run, fr, run.cfg.art, now / 1000, calm);
+  }
+  {
+    const tag = sceneTag(run, fr);
+    const el = $("sceneTag");
+    const key = tag ? `${tag.kind}|${tag.text}` : "";
+    if (el.dataset.key !== key) {
+      el.dataset.key = key;
+      el.hidden = !tag;
+      el.className = `scene-tag ${tag?.kind ?? ""}`;
+      el.textContent = tag?.text ?? "";
+    }
   }
   if (dirty) {
     for (const [k, c] of chartEls) drawChart(c, k, run, t, theme);

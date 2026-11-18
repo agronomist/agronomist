@@ -118,6 +118,10 @@ details.gloss dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px
 details.gloss dt { color: var(--ink); font-weight: 600; }
 details.gloss dd { margin: 0; }
 @media (max-width: 760px) { .sitecard { grid-template-columns: 1fr; } }
+.scene-tag { display: inline-block; margin: 8px 2px 0; padding: 4px 12px; border-radius: 999px; font: 600 12px var(--body); }
+.scene-tag[hidden] { display: none; }
+.scene-tag.window { background: #d6a014; color: #1d1a0c; }
+.scene-tag.frost { background: #3c5a8c; color: #fff; }
 .hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
 
 .left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -288,6 +292,7 @@ details.val summary { cursor: pointer; font: 600 15px var(--display); letter-spa
         <select id="speed" aria-label="Playback speed"><option value="6">Slow</option><option value="12" selected>Normal</option><option value="30">Fast</option></select>
         <select id="view" aria-label="View"><option value="3d" selected>3D view</option><option value="flat">Side view</option></select>
       </div>
+      <div id="sceneTag" class="scene-tag" role="status" hidden></div>
       <p class="hint" id="sceneHint">Drag the scene to turn it.</p>
       <p class="hint">Gold on the slider and charts marks the critical window around silking. Drag any chart to scrub.</p>
     </div>

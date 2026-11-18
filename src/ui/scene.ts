@@ -72,6 +72,10 @@ export function frameAt(run: Run, t: number): Frame {
 }
 
 const rootRand = seeded(7);
+/** "rgb(r,g,b)" from mix() to "r,g,b" */
+function rgbOf(c: string): string {
+  return c.replace(/^rgb\(|\)$/g, "");
+}
 const ROOT_LATERALS = Array.from({ length: 40 }, () => ({ side: rootRand() < 0.5 ? -1 : 1, len: 0.4 + 0.6 * rootRand(), wob: rootRand() * 6 }));
 const cloudRand = seeded(11);
 const CLOUDS = Array.from({ length: 5 }, () => ({ x: cloudRand(), y: 0.08 + 0.3 * cloudRand(), s: 0.7 + 0.8 * cloudRand(), v: 0.004 + 0.006 * cloudRand() }));
@@ -155,9 +159,8 @@ export function drawScene(
   const soilLayers = run.soil.layers;
   const totalMm = soilLayers.reduce((s, l) => s + l.thickness, 0);
   let y = groundY;
-  ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
-  ctx.textBaseline = "middle";
   let zTop = 0;
+  const marks: { mid: number; text: string; rel: number }[] = [];
   soilLayers.forEach((l, k) => {
     const h = (l.thickness / totalMm) * soilH;
     const rel = fr.soilRel[k]!;
@@ -167,10 +170,43 @@ export function drawScene(
     ctx.fillRect(0, y, W, h);
     ctx.fillStyle = "rgba(20,20,20,0.18)";
     ctx.fillRect(0, y + h - 1, W, 1);
-    ctx.fillStyle = rel > 0.45 ? "rgba(255,255,255,0.88)" : "rgba(40,30,20,0.88)";
-    ctx.fillText(`${Math.round(zTop / 10)}–${Math.round((zTop + l.thickness) / 10)} cm  ${Math.round(rel * 100)}% available`, 10, y + h / 2);
+    marks.push({ mid: y + h / 2, text: `${Math.round(zTop / 10)}–${Math.round((zTop + l.thickness) / 10)} cm`, rel });
     zTop += l.thickness;
     y += h;
+  });
+  // one small label per layer in the left margin, spread apart so thin top layers stay readable; a fill bar shows available water
+  ctx.font = "600 10.5px IBM Plex Sans, system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+  const gap = 15;
+  let ly = groundY + 10;
+  const ys = marks.map((m) => {
+    ly = Math.max(ly, m.mid);
+    const out = ly;
+    ly += gap;
+    return out;
+  });
+  const over = ys[ys.length - 1]! - (H - 9);
+  if (over > 0) for (let k = ys.length - 1, shift = over; k >= 0 && shift > 0; k--) {
+    const room = k === 0 ? shift : Math.max(0, ys[k]! - (ys[k - 1]! + gap));
+    const d = Math.min(shift, room);
+    ys[k] = ys[k]! - d;
+    shift -= d;
+  }
+  marks.forEach((m, k) => {
+    const yy = ys[k]!;
+    const tw = ctx.measureText(m.text).width;
+    const w = tw + 58;
+    ctx.fillStyle = "rgba(24,20,16,0.55)";
+    ctx.beginPath();
+    ctx.roundRect(6, yy - 7, w, 14, 7);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(m.text, 12, yy);
+    const bx = 12 + tw + 8;
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.fillRect(bx, yy - 2.5, 28, 5);
+    ctx.fillStyle = m.rel < 0.35 ? "#e3a64a" : "#7fc4f0";
+    ctx.fillRect(bx, yy - 2.5, 28 * m.rel, 5);
   });
 
   // ---- Plants: back row, then front row ----
@@ -201,26 +237,66 @@ export function drawScene(
   // ---- Roots of the centre plant ----
   if (fr.emerged) {
     const depthPx = (fr.rootDepthMm / totalMm) * soilH;
-    ctx.strokeStyle = "rgba(240,228,196,0.92)";
+    // colour follows the water in the layer the root is in: warm cream where it is dry, cool white where it can drink
+    const layerAt = (px: number) => {
+      let acc = 0;
+      for (let k = 0; k < soilLayers.length; k++) {
+        acc += (soilLayers[k]!.thickness / totalMm) * soilH;
+        if (px <= acc) return fr.soilRel[k]!;
+      }
+      return fr.soilRel[soilLayers.length - 1]!;
+    };
+    const rootCol = (px: number, a: number) => `rgba(${rgbOf(mix("#f1d9a0", "#e6f6ff", layerAt(px)))},${a})`;
     ctx.lineCap = "round";
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.moveTo(cx, groundY);
-    for (let d = 0; d <= depthPx; d += 6) ctx.lineTo(cx + Math.sin(d * 0.08) * 2.5, groundY + d);
-    ctx.stroke();
-    ctx.lineWidth = 1;
+    ctx.lineJoin = "round";
+    const stroke = (pts: [number, number][], w0: number, w1: number, depthOf: (i: number) => number) => {
+      for (let i = 1; i < pts.length; i++) {
+        const u = i / (pts.length - 1);
+        const w = w0 + (w1 - w0) * u;
+        ctx.strokeStyle = "rgba(25,15,8,0.45)"; // thin dark edge so the root reads against any soil colour
+        ctx.lineWidth = w + 1.6;
+        ctx.beginPath();
+        ctx.moveTo(pts[i - 1]![0], pts[i - 1]![1]);
+        ctx.lineTo(pts[i]![0], pts[i]![1]);
+        ctx.stroke();
+        ctx.strokeStyle = rootCol(depthOf(i), 0.95);
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(pts[i - 1]![0], pts[i - 1]![1]);
+        ctx.lineTo(pts[i]![0], pts[i]![1]);
+        ctx.stroke();
+      }
+    };
+    const main: [number, number][] = [];
+    for (let d = 0; d <= depthPx; d += 4) main.push([cx + Math.sin(d * 0.07) * 2, groundY + d]);
+    if (main.length < 2) main.push([cx, groundY + 2]);
+    stroke(main, 4, 1.2, (i) => i * 4);
     const spacing = 11;
     for (let k = 0, d = spacing; d < depthPx && k < ROOT_LATERALS.length; k++, d += spacing) {
       const r = ROOT_LATERALS[k]!;
       const maxLen = W * 0.16 * Math.exp((-2.2 * d) / Math.max(soilH, 1)) * r.len + 10;
       const len = Math.min(maxLen, (depthPx - d) * 1.4 + 8);
-      ctx.beginPath();
-      ctx.moveTo(cx, groundY + d);
-      ctx.quadraticCurveTo(cx + r.side * len * 0.55, groundY + d + 4 + r.wob, cx + r.side * len, groundY + d + 12 + r.wob);
-      ctx.stroke();
+      const x0 = cx + Math.sin(d * 0.07) * 2;
+      const pts: [number, number][] = [];
+      for (let i = 0; i <= 8; i++) {
+        const u = i / 8;
+        pts.push([x0 + r.side * len * u, groundY + d + (4 + r.wob) * 2 * u * (1 - 0.5 * u) + 8 * u * u]);
+      }
+      stroke(pts, 1.8, 0.5, () => d);
     }
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(`roots ${(fr.rootDepthMm / 10).toFixed(0)} cm`, cx + 14, groundY + Math.min(depthPx, soilH - 8));
+    // depth marker: a small pill, kept inside the soil
+    const label = `roots ${(fr.rootDepthMm / 10).toFixed(0)} cm`;
+    ctx.font = "600 10.5px IBM Plex Sans, system-ui, sans-serif";
+    ctx.textBaseline = "middle";
+    const tw = ctx.measureText(label).width;
+    const ty = Math.min(groundY + depthPx, H - 10);
+    const tx = Math.min(cx + 12, W - tw - 16);
+    ctx.fillStyle = "rgba(24,20,16,0.6)";
+    ctx.beginPath();
+    ctx.roundRect(tx, ty - 7, tw + 12, 14, 7);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillText(label, tx + 6, ty);
   }
 
   // ---- Weather overlays ----
@@ -279,38 +355,11 @@ export function drawScene(
     }
   }
 
-  drawBanners(ctx, W, run, fr, time, calm, sunX);
 }
 
-/** The two overlay banners; shared by the side view and the 3D view. */
-export function drawBanners(ctx: CanvasRenderingContext2D, W: number, run: Run, fr: Frame, time: number, calm: boolean, sunX: number) {
-  const st = fr.state;
-  if (st.inWindow) {
-    const label = `CRITICAL WINDOW: ${run.cfg.grainWord} number is being set`;
-    ctx.font = "600 12px IBM Plex Sans, system-ui, sans-serif";
-    const w = ctx.measureText(label).width + 24;
-    const pulse = calm ? 1 : 0.8 + 0.2 * Math.sin(time * 3);
-    const bx = sunX < W * 0.5 ? W - w - 14 : 14; // keep the banner clear of the sun
-    ctx.fillStyle = `rgba(214,160,20,${0.92 * pulse})`;
-    ctx.beginPath();
-    ctx.roundRect(bx, 12, w, 26, 13);
-    ctx.fill();
-    ctx.fillStyle = "#1d1a0c";
-    ctx.textAlign = "center";
-    ctx.fillText(label, bx + w / 2, 26);
-    ctx.textAlign = "left";
-  }
-  if (run.result.frostKilled && fr.i >= run.result.days.length - 1) {
-    ctx.font = "600 12px IBM Plex Sans, system-ui, sans-serif";
-    const label = "KILLING FROST BEFORE MATURITY";
-    const w = ctx.measureText(label).width + 24;
-    ctx.fillStyle = "rgba(60,90,140,0.92)";
-    ctx.beginPath();
-    ctx.roundRect(W / 2 - w / 2, 12, w, 26, 13);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.fillText(label, W / 2, 26);
-    ctx.textAlign = "left";
-  }
+/** The status chip under the scene (critical window or killing frost), or null. It lives outside the canvas so it never covers the plants. */
+export function sceneTag(run: Run, fr: Frame): { text: string; kind: "window" | "frost" } | null {
+  if (run.result.frostKilled && fr.i >= run.result.days.length - 1) return { text: "Killing frost before maturity", kind: "frost" };
+  if (fr.state.inWindow) return { text: `Critical window: ${run.cfg.grainWord} number is being set`, kind: "window" };
+  return null;
 }
