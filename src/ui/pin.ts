@@ -19,7 +19,13 @@ const fmtLon = (x: number) => `${Math.abs(x).toFixed(2)}°${x >= 0 ? "E" : "W"}`
  * generator's annual cycle, and SoilGrids layers turned into soil parameters. A pin with no soil data
  * (water, built-up land, a failed request) keeps the real climate and a generic loam, and says so.
  */
-export async function loadPin(lat: number, lon: number, o: HttpOptions = {}): Promise<Location> {
+/** The US Midwest and the neighbouring plains: where the model is calibrated and offered. */
+export const MIDWEST = { latMin: 36, latMax: 49.5, lonMin: -104.5, lonMax: -80.5 };
+export const inMidwest = (lat: number, lon: number) => lat >= MIDWEST.latMin && lat <= MIDWEST.latMax && lon >= MIDWEST.lonMin && lon <= MIDWEST.lonMax;
+
+/** Pass `world: true` to allow a pin anywhere (the page does not; tests of the southern hemisphere do). */
+export async function loadPin(lat: number, lon: number, o: HttpOptions & { world?: boolean } = {}): Promise<Location> {
+  if (!o.world && !inMidwest(lat, lon)) throw new PinError("Pins are limited to the US Midwest for now: between about 36°N and 49.5°N, and 104.5°W to 80.5°W.");
   if (!(Math.abs(lat) <= 66)) {
     throw new PinError("Pins must be between 66°S and 66°N: the model has no polar seasons.");
   }

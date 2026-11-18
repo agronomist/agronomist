@@ -8,3 +8,4 @@ export * from "./hybrid";
 export * from "./wheat";
 export * from "./timing";
 export * from "./stand";
+export * from "./soybean";

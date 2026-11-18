@@ -11,6 +11,7 @@ import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from ".
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate } from "./validation";
+import { inject } from "@vercel/analytics";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -123,6 +124,13 @@ const TIPS: Record<CropKey, { sow: string; rm: string; n: string; pop: string; d
     pop: "More plants close the canopy sooner, but a maize plant makes one ear, so a crowded stand sets fewer kernels each. Dry or sandy fields do best with fewer plants.",
     depth: "Deeper seed sits in moister soil but takes longer to emerge, and slow emergence costs seedlings. Very shallow seed can dry out.",
   },
+  soy: {
+    sow: "Soybeans sown late April to mid May use the whole season. Later sowings flower sooner than they should and lose yield; very early ones risk a frost on seedlings.",
+    rm: "Later maturity groups flower later and fill longer. Too late for the place and frost arrives before they finish; too early leaves light unused.",
+    n: "Soybeans make their own nitrogen, so there is no nitrogen rate to set.",
+    pop: "Soybeans branch and fill gaps, so yield is flat over a wide range of seeding rates. Only very thin stands lose yield.",
+    depth: "Soybeans lift their seed leaves out of the soil, so deep seed emerges slowly and loses seedlings. Very shallow seed can dry out.",
+  },
   wheat: {
     sow: "Autumn sowing lets winter wheat vernalize but exposes it to cold. Spring sowing skips winter.",
     rm: "Later classes fill grain longer but flower later, nearer the heat of early summer.",
@@ -181,7 +189,7 @@ async function openMap() {
     if (!pinMap) {
       $("mapMsg").textContent = "Loading the map…";
       pinMap = await createPinMap($("map"), { lat: loc.lat, lon: loc.lon }, (la, lo) => void usePin(la, lo));
-      $("mapMsg").textContent = "Click anywhere between 66°S and 66°N. The site fetches the daily weather since 1991 and the soil layers for that point.";
+      $("mapMsg").textContent = "Click anywhere in the US Midwest. The site fetches the daily weather since 1991 and the soil layers for that point.";
     }
     pinMap.show(loc.lat, loc.lon);
   } catch (e) {
@@ -209,6 +217,8 @@ const LEGENDS: Record<CropKey, string> = {
     '<span><i style="background:var(--water)"></i>Water</span><span><i style="background:var(--leaf)"></i>Nitrogen</span><span><i style="background:var(--heat)"></i>Temperature response</span>',
   wheat:
     '<span><i style="background:var(--water)"></i>Water</span><span><i style="background:var(--leaf)"></i>Nitrogen</span><span><i style="background:var(--heat)"></i>Temperature response</span><span><i style="background:var(--ink)"></i>Vernalization (dashed)</span>',
+  soy:
+    '<span><i style="background:var(--water)"></i>Water</span><span><i style="background:var(--heat)"></i>Temperature response</span>',
 };
 
 /** Rebuild everything that depends on the crop: slider ranges, scenario list, labels. */
@@ -220,9 +230,18 @@ function configureCrop() {
   sow.step = String(cfg.sow.step);
   ($("nrate") as HTMLInputElement).max = String(cfg.nMax);
   $("rmLab").textContent = cfg.rmLabel;
+  const rmEl = $("rm") as HTMLInputElement;
+  rmEl.min = String(cfg.rm.min);
+  rmEl.max = String(cfg.rm.max);
+  rmEl.step = String(cfg.rm.step);
+  const noN = cfg.nMax === 0;
+  ($("nrate").closest(".field") as HTMLElement).hidden = noN;
+  ($("c-nresp").closest(".card") as HTMLElement).hidden = noN;
   $("habitField").hidden = !cfg.habits;
+  $("prevField").hidden = cfg.key === "wheat";
+  $("tip-prev").textContent = cfg.key === "maize" ? "Corn after soybeans gets a nitrogen credit and avoids the continuous-corn penalty. Corn after corn needs more nitrogen and yields less." : "Soybeans after corn yield best. Soybeans after soybeans build up disease and lose some yield.";
   $("eyebrow").textContent = `Crop decision lab · ${cfg.label.toLowerCase()}`;
-  $("r-kernels-t").textContent = cfg.grainWord === "kernel" ? "Kernels" : "Grains";
+  $("r-kernels-t").textContent = cfg.grainWord === "kernel" ? "Kernels" : cfg.grainWord === "seed" ? "Seeds" : "Grains";
   $("lg-stress").innerHTML = LEGENDS[crop];
   $("tip-sow").textContent = TIPS[crop].sow;
   $("tip-rm").textContent = TIPS[crop].rm;
@@ -246,13 +265,14 @@ function configureCrop() {
 function syncOutputs() {
   const o = options[active]!;
   $("sowOut").textContent = dateLabel(o.sowDoy);
-  $("rmOut").textContent = crop === "wheat" ? `class ${o.rm}` : `${o.rm} days`;
+  $("rmOut").textContent = crop === "wheat" ? `class ${o.rm}` : crop === "soy" ? `MG ${(o.rm / 10).toFixed(1)}` : `${o.rm} days`;
   $("nOut").textContent = `${o.nRate} kg/ha`;
   $("popOut").textContent = `${o.seedingRate} seeds/m²`;
   $("depthOut").textContent = `${o.depthCm} cm`;
   ($("pop") as HTMLInputElement).value = String(o.seedingRate);
   ($("depth") as HTMLInputElement).value = String(o.depthCm);
   ($("habit") as HTMLSelectElement).value = o.habit;
+  ($("prev") as HTMLSelectElement).value = o.prev ?? "rotated";
   ($("sow") as HTMLInputElement).value = String(o.sowDoy);
   ($("rm") as HTMLInputElement).value = String(o.rm);
   ($("nrate") as HTMLInputElement).value = String(o.nRate);
@@ -411,7 +431,7 @@ const ensId = () => {
   const e = activeEns();
   return `${crop}|${locKey}|${e.source}|${e.years.length}|${e.inSeason?.through ?? ""}|${e.years[0]?.label}`;
 };
-const planKey = (o: Option) => `${o.habit}|${o.sowDoy}|${o.rm}|${o.nRate}|${o.seedingRate}|${o.depthCm}`;
+const planKey = (o: Option) => `${o.prev ?? "rotated"}|${o.habit}|${o.sowDoy}|${o.rm}|${o.nRate}|${o.seedingRate}|${o.depthCm}`;
 const priceKey = () => `${prices.grain}|${prices.nitrogen}|${prices.seedPer1000}`;
 
 function renderChips() {
@@ -546,8 +566,9 @@ function refreshSlow() {
   const soil = soilFor(loc);
   const ens = activeEns();
   const o = options[active]!;
-  nres = cached(`nr|${ensId()}|${priceKey()}|${planKey({ ...o, nRate: 0 })}`, () => nResponse(cfg, loc, soil, o, ens, prices, 20));
-  $("nSub").textContent = `${planName(active)}: the best average return is at ${nres.best} kg N/ha, and rates from ${nres.range[0]} to ${nres.range[1]} are within about $1/ac of it. Your plan uses ${o.nRate}.`;
+  if (cfg.nMax === 0) nres = null;
+  else nres = cached(`nr|${ensId()}|${priceKey()}|${planKey({ ...o, nRate: 0 })}`, () => nResponse(cfg, loc, soil, o, ens, prices, 20));
+  if (nres) $("nSub").textContent = `${planName(active)}: the best average return is at ${nres.best} kg N/ha, and rates from ${nres.range[0]} to ${nres.range[1]} are within about $1/ac of it. Your plan uses ${o.nRate}.`;
   lossRows = options.map((p, i) => ({ name: planName(i), k: i, l: cached(`ls|${ensId()}|${planKey(p)}`, () => meanLosses(cfg, loc, soil, p, ens)) }));
   drawPlots();
 }
@@ -656,7 +677,12 @@ function setupCrop(k: CropKey) {
 }
 
 function init() {
-  ($("loc") as HTMLSelectElement).innerHTML = LOCATIONS.map((l) => `<option value="${l.key}">${l.name}, ${l.region}</option>`).join("");
+  try {
+    inject();
+  } catch {
+    // analytics must never break the page
+  }
+  ($("loc") as HTMLSelectElement).innerHTML = LOCATIONS.filter((l) => !l.hidden && !l.synthetic).map((l) => `<option value="${l.key}">${l.name}, ${l.region}</option>`).join("");
   $("mapBtn").addEventListener("click", () => void openMap());
   $("coordForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -685,6 +711,7 @@ function init() {
     options[active] = {
       ...o,
       habit: ($("habit") as HTMLSelectElement).value as Option["habit"],
+      prev: ($("prev") as HTMLSelectElement).value as Option["prev"],
       sowDoy: Number(($("sow") as HTMLInputElement).value),
       rm: Number(($("rm") as HTMLInputElement).value),
       nRate: Number(($("nrate") as HTMLInputElement).value),
@@ -695,7 +722,7 @@ function init() {
     recompute(true);
     scheduleRefresh();
   };
-  for (const id of ["habit", "sow", "rm", "nrate", "pop", "depth"]) $(id).addEventListener("input", change);
+  for (const id of ["habit", "prev", "sow", "rm", "nrate", "pop", "depth"]) $(id).addEventListener("input", change);
   $("scenario").addEventListener("input", () => {
     playKey = ($("scenario") as HTMLSelectElement).value;
     recompute(true);

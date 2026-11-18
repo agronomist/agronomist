@@ -121,6 +121,45 @@ export function createScene3D(canvas: HTMLCanvasElement, onDrag: () => void): Sc
     });
   }
 
+  function soy(a: any, fr: Frame, time: number, phase: number, calm: boolean, dead: boolean) {
+    const st = fr.state;
+    const h = 95 * st.hFrac;
+    if (h < 2) return;
+    const sway = calm ? 0 : Math.sin(time * 1.2 + phase) * (1 + 3 * st.hFrac);
+    const matureTan = clamp((st.dvs - 1.5) / 0.4, 0, 1);
+    const stemCol = dead ? "#8c8160" : mix("#6aa34a", "#b9a560", matureTan);
+    const greenBase = mix("#4f9a3a", "#a9b04a", clamp(1 - st.ws, 0, 1) * 1.2);
+    const green = mix(greenBase, "#b8cc7a", clamp(1 - st.nni, 0, 1) * 0.5);
+    new Zdog.Shape({ addTo: a, stroke: 3.5, color: stemCol, path: [{ x: 0, y: 0 }, { bezier: [{ x: 0, y: -h * 0.35 }, { x: sway * 0.5, y: -h * 0.7 }, { x: sway, y: -h }] }] });
+    const nodes = Math.round(2 + 6 * st.leafScale);
+    const deadShare = clamp(st.deadLeaf / Math.max(1, st.leaf + st.deadLeaf), 0, 1);
+    const r = 7 + 9 * st.leafScale;
+    for (let k = 0; k < nodes; k++) {
+      const u = 0.15 + (0.8 * k) / nodes;
+      const nx = sway * u;
+      const ny = -h * u;
+      const ang = k * 2.4;
+      const reach = r * (2.2 - 0.9 * u);
+      const senescent = dead || k < deadShare * nodes || matureTan > 0.15 + 0.7 * (k / nodes);
+      const col = senescent ? mix(green, dead ? "#8c8160" : "#d2b857", 0.85) : green;
+      const petiole = new Zdog.Anchor({ addTo: a, translate: { x: nx, y: ny }, rotate: { y: ang } });
+      new Zdog.Shape({ addTo: petiole, stroke: 1.5, color: stemCol, path: [{ x: 0, y: 0 }, { x: reach, y: -reach * 0.25 + (st.ws < 0.6 ? reach * 0.3 : 0) }] });
+      const tip = { x: reach, y: -reach * 0.25 + (st.ws < 0.6 ? reach * 0.3 : 0) };
+      for (const [dx, dz] of [[0.2, 0], [-0.1, 0.7], [-0.1, -0.7]] as const) new Zdog.Ellipse({ addTo: petiole, diameter: r * 1.1, quarters: 4, stroke: 1, fill: true, color: col, translate: { x: tip.x + dx * r, y: tip.y, z: dz * r }, rotate: { x: TAU / 4 } });
+    }
+    if (st.dvs > 0.95 && st.dvs < 1.35) for (let k = 0; k < 4; k++) new Zdog.Shape({ addTo: a, stroke: 3.5, color: dead ? "#a89c78" : "#d9c2ee", translate: { x: sway * 0.6 + (k % 2 ? 6 : -6), y: -h * (0.5 + 0.1 * k), z: k % 2 ? 3 : -3 } });
+    if (st.dvs > 1.15) {
+      const pod = dead ? "#a39668" : mix("#7fae4c", "#c9ab6c", clamp(st.earFrac * 1.6 + matureTan, 0, 1));
+      const n = 4 + Math.round(6 * st.earFrac);
+      for (let k = 0; k < n; k++) {
+        const u = 0.3 + 0.06 * k;
+        const x = sway * u + (k % 2 ? 7 : -7);
+        const y = -h * u;
+        new Zdog.Shape({ addTo: a, stroke: 3 + 2 * st.earFrac, color: pod, path: [{ x, y, z: (k % 3) * 3 - 3 }, { x: x + (k % 2 ? 2 : -2), y: y + 6 + 8 * st.earFrac, z: (k % 3) * 3 - 3 }] });
+      }
+    }
+  }
+
   function render(run: Run, fr: Frame, time: number, calm: boolean) {
     illo.removeChild(world);
     world = new Zdog.Anchor({ addTo: illo, translate: { y: 0 } });
@@ -189,6 +228,7 @@ export function createScene3D(canvas: HTMLCanvasElement, onDrag: () => void): Sc
           const a = new Zdog.Anchor({ addTo: world, translate: { x, z }, rotate: { y: (ri * 4 + ci) * 0.7 } });
           const phase = ri * 1.7 + ci * 2.3;
           if (run.cfg.key === "wheat") wheat(a, fr, time, phase, calm, dead);
+          else if (run.cfg.key === "soy") soy(a, fr, time, phase, calm, dead);
           else maize(a, fr, time, phase, calm, dead);
         }),
       );

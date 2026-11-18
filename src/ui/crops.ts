@@ -1,6 +1,8 @@
 import {
   hybrid,
   maizeDefaults,
+  soybeanCultivar,
+  soybeanDefaults,
   wheatCultivar,
   wheatSpringDefaults,
   wheatWinterDefaults,
@@ -9,9 +11,10 @@ import {
 } from "../index";
 import { maizeArt } from "./art-maize";
 import { wheatArt } from "./art-wheat";
+import { soyArt } from "./art-soy";
 import type { PlantArt } from "./draw-util";
 
-export type CropKey = "maize" | "wheat";
+export type CropKey = "maize" | "wheat" | "soy";
 export type Habit = "winter" | "spring";
 
 export interface Settings {
@@ -52,6 +55,7 @@ export interface CropConfig {
   depth: { min: number; max: number; step: number };
   defaults: { rm: number; nRate: number; habit: Habit; seedingRate: number; depthCm: number };
   rmLabel: string;
+  rm: { min: number; max: number; step: number };
   habits: boolean;
   scenarios: Record<string, Scenario>;
   fertilizerFor(nRate: number, sowDoy: number): { day: number; kgN: number }[];
@@ -65,7 +69,7 @@ export interface CropConfig {
 
 const maize: CropConfig = {
   key: "maize",
-  label: "Maize",
+  label: "Corn",
   art: maizeArt,
   cropFor: (s) => hybrid(maizeDefaults, s.rm),
   yearStart: 60,
@@ -76,6 +80,7 @@ const maize: CropConfig = {
   depth: { min: 1, max: 10, step: 1 },
   defaults: { rm: 110, nRate: 180, habit: "winter", seedingRate: 8, depthCm: 5 },
   rmLabel: "Hybrid maturity",
+  rm: { min: 95, max: 125, step: 5 },
   habits: false,
   scenarios: {
     typical: { label: "Typical year", opts: {} },
@@ -117,6 +122,7 @@ const wheat: CropConfig = {
   depth: { min: 1, max: 8, step: 1 },
   defaults: { rm: 110, nRate: 140, habit: "winter", seedingRate: 350, depthCm: 4 },
   rmLabel: "Cultivar maturity",
+  rm: { min: 95, max: 125, step: 5 },
   habits: true,
   scenarios: {
     typical: { label: "Typical year", opts: {} },
@@ -159,4 +165,46 @@ const wheat: CropConfig = {
   lede: "One simulated season, played back. Winter wheat needs a cold spell before it can head, so sowing date, winter or spring habit and cultivar decide when the critical window lands and what weather it meets.",
 };
 
-export const CROPS: Record<CropKey, CropConfig> = { maize, wheat };
+const soy: CropConfig = {
+  key: "soy",
+  label: "Soybeans",
+  art: soyArt,
+  cropFor: (s) => soybeanCultivar(soybeanDefaults, s.rm),
+  yearStart: 60,
+  yearDays: 330,
+  sow: { min: 100, max: 185, step: 5, value: 130 },
+  nMax: 0,
+  pop: { min: 15, max: 55, step: 2.5 },
+  depth: { min: 1, max: 8, step: 0.5 },
+  defaults: { rm: 30, nRate: 0, habit: "winter", seedingRate: 35, depthCm: 3.5 },
+  rmLabel: "Maturity group",
+  rm: { min: 20, max: 40, step: 5 },
+  habits: false,
+  scenarios: {
+    typical: { label: "Typical year", opts: {} },
+    hazard: {
+      label: "Midsummer heat wave + drought",
+      opts: { heatWave: { startDoy: 195, endDoy: 230, addC: 8 }, drySpell: { startDoy: 190, endDoy: 240 } },
+    },
+    dry: { label: "Dry year", opts: {}, rainFactor: 0.5 },
+    wet: { label: "Cool, wet year", opts: {}, rainFactor: 1.6, tempShift: -1 },
+  },
+  fertilizerFor: () => [],
+  grid: { sow: () => [100, 110, 120, 130, 140, 150, 160, 175], rm: [20, 25, 30, 35, 40], n: [0], pop: [20, 25, 30, 35, 40, 50], depth: [1.5, 2.5, 3.5, 5, 6.5], habits: ["winter"] },
+  grainWord: "seed",
+  idealSrad: 20,
+  stageName: ({ dvs, emerged, killed, inWindow, kernels }) => {
+    if (!emerged) return "Seed in the soil";
+    if (killed) return "Killed by frost";
+    if (dvs >= 2) return "Maturity: leaves dropped";
+    if (inWindow) return "Flowering and pod set";
+    if (kernels > 0 && dvs < 1.8) return "Seed fill";
+    if (kernels > 0) return "Leaves yellowing";
+    if (dvs < 0.3) return "Seedling";
+    return "Vegetative growth";
+  },
+  frostLabel: "killing frost",
+  lede: "One simulated season, played back. Soybeans make their own nitrogen, so the choices are sowing date, maturity group, seeding rate and depth. Seed number is set over the weeks after first flower, so the weather then decides the crop.",
+};
+
+export const CROPS: Record<CropKey, CropConfig> = { maize, wheat, soy };

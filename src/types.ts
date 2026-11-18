@@ -104,6 +104,8 @@ export interface CropParams {
   nUptakeFraction: number;
   /** Maximum crop N uptake, kg N ha-1 d-1 */
   nMaxUptake: number;
+  /** Legume: biological fixation covers whatever the soil cannot supply, so nitrogen never limits growth */
+  fixesN?: boolean;
 
   /** Stand establishment and density response; omit to ignore population and depth */
   stand?: StandParams;

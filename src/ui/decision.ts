@@ -21,9 +21,10 @@ export interface Prices {
 export const DEFAULT_PRICES: Record<CropKey, Prices> = {
   maize: { grain: 190, nitrogen: 1.1, seedPer1000: 3.5 },
   wheat: { grain: 240, nitrogen: 1.1, seedPer1000: 0.02 },
+  soy: { grain: 400, nitrogen: 0, seedPer1000: 0.5 },
 };
 /** Moisture the grain is sold at; the model's yield is dry matter. */
-export const MARKET_MOISTURE: Record<CropKey, number> = { maize: 0.155, wheat: 0.135 };
+export const MARKET_MOISTURE: Record<CropKey, number> = { maize: 0.155, wheat: 0.135, soy: 0.13 };
 
 export interface Stats {
   n: number;

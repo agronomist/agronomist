@@ -289,7 +289,7 @@ export function simulate(input: SimulationInput): SimulationResult {
           nBal.uptake += uptake;
           nUptakeToday = uptake;
         }
-        nni = targetN > 0 ? clamp(nCrop / targetN, 0, 1) : 1;
+        nni = targetN > 0 && !p.fixesN ? clamp(nCrop / targetN, 0, 1) : 1;
       }
 
       gross =

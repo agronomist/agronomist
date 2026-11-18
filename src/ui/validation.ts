@@ -12,6 +12,12 @@ export const NASS: Record<CropKey, { place: string; location: string; years: Rec
     location: "iowa",
     years: { 2012: 137, 2013: 165, 2014: 178, 2015: 192, 2016: 203, 2017: 202, 2018: 196, 2021: 205, 2022: 200, 2023: 201, 2024: 211 },
   },
+  soy: {
+    place: "Iowa soybeans",
+    location: "iowa",
+    // Iowa Soybean Association's table of NASS state yields (2021 is the NASS figure of 62; later revisions put it near 63)
+    years: { 2012: 45, 2013: 45.5, 2014: 51.5, 2015: 56.5, 2016: 60.5, 2017: 56.5, 2018: 57, 2019: 55, 2020: 53, 2021: 62, 2022: 58.5, 2023: 58, 2024: 60 },
+  },
   wheat: {
     place: "Kansas winter wheat",
     location: "kansas",
@@ -19,8 +25,9 @@ export const NASS: Record<CropKey, { place: string; location: string; years: Rec
   },
 };
 
-/** bu/ac to t/ha of dry grain: 56 lb bushel at 15.5% moisture for maize, 60 lb at 13.5% for wheat. */
-export const buAcToDryTHa = (crop: CropKey, bu: number) => (crop === "maize" ? bu * 0.062766 * (1 - 0.155) : bu * 0.067253 * (1 - 0.135));
+/** bu/ac to t/ha of dry grain: 56 lb bushel at 15.5% moisture for corn, 60 lb at 13.5% for wheat and 13% for soybeans. */
+export const buAcToDryTHa = (crop: CropKey, bu: number) =>
+  crop === "maize" ? bu * 0.062766 * (1 - 0.155) : crop === "soy" ? bu * 0.067253 * (1 - 0.13) : bu * 0.067253 * (1 - 0.135);
 
 export interface ValidationRow {
   year: number;

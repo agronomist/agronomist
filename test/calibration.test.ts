@@ -68,3 +68,39 @@ describe("wheat sanity", () => {
     expect(e.yield.mean).toBeGreaterThan(3);
   });
 });
+
+describe("Iowa soybeans (synthetic normals)", () => {
+  const cfg = CROPS.soy;
+  const loc = locationByKey("iowa");
+  const soil = soilFor(loc);
+  const ens = syntheticEnsemble(cfg, loc, 30);
+  const base: Option = { id: "s", name: "S", sowDoy: 130, rm: 30, nRate: 0, seedingRate: 35, depthCm: 3.5, habit: "winter" };
+  const y = (o: Partial<Option>) => evaluate(cfg, loc, soil, { ...base, ...o }, ens, DEFAULT_PRICES.soy).yield.mean;
+
+  it("makes a yield of the order of the best Iowa fields (about 55 to 75 bu/ac, dry 3.2 to 4.4 t/ha)", () => {
+    expect(y({})).toBeGreaterThan(3.2);
+    expect(y({})).toBeLessThan(4.4);
+  });
+  it("loses yield when sown late, and is flat across a wide range of seeding rates", () => {
+    expect(y({ sowDoy: 165 }) / y({})).toBeLessThan(0.95);
+    expect(y({ sowDoy: 165 }) / y({})).toBeGreaterThan(0.6);
+    expect(Math.abs(y({ seedingRate: 25 }) - y({ seedingRate: 45 })) / y({})).toBeLessThan(0.08);
+  });
+  it("is not limited by nitrogen: nitrogen stress is nil", () => {
+    expect(meanLosses(cfg, loc, soil, base, ens).nitrogen).toBeLessThan(0.1);
+  });
+});
+
+describe("continuous cropping", () => {
+  it("costs corn yield and needs more nitrogen than corn after soybeans", () => {
+    const cfg = CROPS.maize;
+    const loc = locationByKey("iowa");
+    const soil = soilFor(loc);
+    const ens = syntheticEnsemble(cfg, loc, 20);
+    const o: Option = { id: "c", name: "C", sowDoy: 120, rm: 110, nRate: 150, seedingRate: 8, depthCm: 5, habit: "winter" };
+    const rot = evaluate(cfg, loc, soil, o, ens, DEFAULT_PRICES.maize).yield.mean;
+    const same = evaluate(cfg, loc, soil, { ...o, prev: "same" }, ens, DEFAULT_PRICES.maize).yield.mean;
+    expect(same / rot).toBeLessThan(0.97);
+    expect(same / rot).toBeGreaterThan(0.8);
+  });
+});

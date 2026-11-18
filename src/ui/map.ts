@@ -51,7 +51,7 @@ export interface PinMap {
 /** Create a click-to-pin map in `el`. `onPick` receives the clicked point with longitude wrapped to -180..180. */
 export async function createPinMap(el: HTMLElement, start: { lat: number; lon: number }, onPick: (lat: number, lon: number) => void): Promise<PinMap> {
   const L = await loadLeaflet();
-  const map = L.map(el, { worldCopyJump: true }).setView([start.lat, start.lon], 4);
+  const map = L.map(el, { minZoom: 4, maxBounds: [[33, -108], [52, -77]], maxBoundsViscosity: 0.9 }).setView([start.lat, start.lon], 5);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 12,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -65,7 +65,7 @@ export async function createPinMap(el: HTMLElement, start: { lat: number; lon: n
   return {
     show(lat, lon) {
       map.invalidateSize();
-      map.setView([lat, lon], Math.max(map.getZoom(), 4));
+      map.setView([lat, lon], Math.max(map.getZoom(), 5));
       marker.setLatLng([lat, lon]);
     },
     mark(lat, lon) {

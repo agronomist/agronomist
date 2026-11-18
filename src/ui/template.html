@@ -180,19 +180,20 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
     <div id="mapWrap" hidden>
       <div id="map" role="application" aria-label="World map. Click to drop a pin."></div>
       <form id="coordForm" class="coords"><label for="coordIn">Or type latitude, longitude</label><input id="coordIn" inputmode="decimal" placeholder="42.03, -93.62" autocomplete="off"><button type="submit">Go</button></form>
-      <p class="tip" id="mapMsg" role="status">Click anywhere between 66°S and 66°N. The site fetches ten years of weather and the soil layers for that point.</p>
+      <p class="tip" id="mapMsg" role="status">Click anywhere in the US Midwest. The site fetches the daily weather since 1991 and the soil layers for that point.</p>
     </div>
   </section>
 
   <section class="card" aria-label="Plans">
     <div class="planbar">
-      <div class="field"><span class="lab">Crop</span><div class="seg" role="group" aria-label="Crop"><button id="crop-maize" type="button" aria-pressed="true">Maize</button><button id="crop-wheat" type="button" aria-pressed="false">Wheat</button></div></div>
+      <div class="field"><span class="lab">Crop</span><div class="seg" role="group" aria-label="Crop"><button id="crop-maize" type="button" aria-pressed="true">Corn</button><button id="crop-soy" type="button" aria-pressed="false">Soybeans</button><button id="crop-wheat" type="button" aria-pressed="false">Wheat</button></div></div>
       <div class="chips" id="chips" role="group" aria-label="Plans"></div>
       <button id="addPlan" type="button" class="linkbtn">Copy this plan</button>
       <button id="delPlan" type="button" class="linkbtn">Remove this plan</button>
     </div>
     <div class="controls">
       <div class="field" id="habitField" hidden><label for="habit">Growth habit</label><select id="habit"><option value="winter">Winter wheat</option><option value="spring">Spring wheat</option></select></div>
+      <div class="field" id="prevField"><label for="prev">Previous crop</label><select id="prev"><option value="rotated">Rotated (the other crop)</option><option value="same">Same crop again</option></select><span class="tip" id="tip-prev"></span></div>
       <div class="field"><label for="sow">Sowing date <output id="sowOut"></output></label><input id="sow" type="range" min="95" max="185" step="5"><span class="tip" id="tip-sow"></span></div>
       <div class="field"><label for="rm"><span id="rmLab">Hybrid maturity</span> <output id="rmOut"></output></label><input id="rm" type="range" min="95" max="125" step="5"><span class="tip" id="tip-rm"></span></div>
       <div class="field"><label for="nrate">Nitrogen <output id="nOut"></output></label><input id="nrate" type="range" min="0" max="300" step="20"><span class="tip" id="tip-n"></span></div>

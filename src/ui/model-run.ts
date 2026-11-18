@@ -40,6 +40,8 @@ export interface Management {
   seedingRate: number;
   depthCm: number;
   habit: Habit;
+  /** Corn after soybeans or soybeans after corn (default), or the same crop as last year. */
+  prev?: "rotated" | "same";
 }
 
 /** Counterfactual switches used to split yield losses; every one defaults to the real thing. */
@@ -59,6 +61,14 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
   if (tw.noFrost) crop = { ...crop, frostKillTemp: -99, frostHardyTemp: -99 };
   if (tw.noHeat) crop = { ...crop, heatDamageRate: 0 };
   let sl = soil;
+  if (m.prev === "same") {
+    // continuous cropping: no legume nitrogen credit (about 35 kg N ha-1 less in the profile) and a rotation penalty on growth
+    crop = { ...crop, rue: crop.rue * (cfg.key === "maize" ? 0.95 : cfg.key === "soy" ? 0.96 : 0.97) };
+    if (cfg.key === "maize" && sl.layers.some((l) => l.mineralN !== undefined)) {
+      let left = 35;
+      sl = { ...sl, layers: sl.layers.map((l) => { const take = Math.min(left, l.mineralN ?? 0); left -= take; return { ...l, mineralN: (l.mineralN ?? 0) - take }; }) };
+    }
+  }
   if (tw.noNLimit) sl = { ...sl, mineralizationRate: undefined };
   if (tw.noWaterLimit) sl = { ...sl, initialFraction: 1 };
   let weather = season.slice(m.sowDoy - cfg.yearStart);

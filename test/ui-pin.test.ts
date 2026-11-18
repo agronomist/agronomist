@@ -32,6 +32,11 @@ const mkFetch = (weather: unknown, soil: unknown | "fail" = soilGridsResponse())
 const noSleep = async () => {};
 
 describe("fitClimate", () => {
+  it("a pin outside the Midwest is refused unless the world option is on", async () => {
+    await expect(loadPin(-33.5, -61, { fetch: mkFetch(multiYear(iowa)), sleep: noSleep })).rejects.toThrow(/Midwest/);
+    await expect(loadPin(48.9, -123, { fetch: mkFetch(multiYear(iowa)), sleep: noSleep })).rejects.toThrow(/Midwest/);
+  });
+
   it("recovers the generator settings that made the record", () => {
     const f = fitClimate(parseOpenMeteo(multiYear(iowa)));
     expect(f.tmeanAnnual).toBeCloseTo(9.5, 0);
@@ -85,7 +90,7 @@ describe("loadPin", () => {
   it("refuses a failed weather request and polar latitudes", async () => {
     const bad = async () => ({ ok: false, status: 404, json: async () => ({}) });
     await expect(loadPin(40, -90, { fetch: bad, sleep: noSleep, retries: 0 })).rejects.toBeInstanceOf(PinError);
-    await expect(loadPin(-75, -60, { fetch: mkFetch(multiYear(iowa)), sleep: noSleep })).rejects.toThrow(/66/);
+    await expect(loadPin(-75, -60, { fetch: mkFetch(multiYear(iowa)), sleep: noSleep, world: true })).rejects.toThrow(/66/);
   });
   it("a pin matching the Iowa preset plays like the Iowa preset", async () => {
     const loc = await loadPin(42.0, -93.6, { fetch: mkFetch(multiYear(iowa), soilGridsResponse({ clay: 220, sand: 250, soc: 180, nitrogen: 180, bdod: 120 })), sleep: noSleep });
@@ -106,7 +111,7 @@ describe("southern hemisphere pins", () => {
   const south = () => multiYear(iowa, 182);
   it("mirrors the calendar: shifted climate fit, real month names, same season length", async () => {
     const n = await loadPin(42, -93.6, { fetch: mkFetch(multiYear(iowa)), sleep: noSleep });
-    const so = await loadPin(-42, -60.6, { fetch: mkFetch(south()), sleep: noSleep });
+    const so = await loadPin(-42, -60.6, { fetch: mkFetch(south()), sleep: noSleep, world: true });
     expect(so.calShift).toBe(182);
     expect(n.calShift).toBe(0);
     expect(so.climate.tmeanAnnual).toBeCloseTo(n.climate.tmeanAnnual, 1);
@@ -129,7 +134,7 @@ describe("southern hemisphere pins", () => {
     setCalendarShift(0);
   });
   it("wheat in the south still finds a winter sowing date and survives", async () => {
-    const so = await loadPin(-38, -60, { fetch: mkFetch(south()), sleep: noSleep });
+    const so = await loadPin(-38, -60, { fetch: mkFetch(south()), sleep: noSleep, world: true });
     const best = findBest("wheat", "typical", 4, so.key);
     expect(best.yieldTHa).toBeGreaterThan(3);
   });
