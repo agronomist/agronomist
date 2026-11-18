@@ -11,6 +11,7 @@ import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from ".
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate, type ValidationResult } from "./validation";
+import { componentCheck, rowOk } from "./component-check";
 import { runStateCheck, type StateRow } from "./state-check";
 import { inject } from "@vercel/analytics";
 import { createEasy, type Easy } from "./easy";
@@ -845,6 +846,13 @@ function init() {
       scheduleRefresh();
     });
   $("runVal").addEventListener("click", () => void runValidation());
+  $("runComp").addEventListener("click", () => {
+    const rows = componentCheck();
+    const f = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(2));
+    $("compOut").innerHTML = `<table class="cmp"><thead><tr><th>Part</th><th>Model</th><th>Published</th><th>Result</th></tr></thead><tbody>${rows
+      .map((r) => `<tr><td>${r.name}<br><span class="tip">${r.source}${r.note ? `. Note: ${r.note}` : ""}</span></td><td>${f(r.model)}</td><td>${f(r.low)} to ${f(r.high)} ${r.unit}</td><td>${rowOk(r) ? "within" : r.model > r.high ? "above" : "below"}</td></tr>`)
+      .join("")}</tbody></table>`;
+  });
   $("runValAll").addEventListener("click", (e) => {
     const b = e.target as HTMLButtonElement;
     b.disabled = true;
