@@ -6,24 +6,17 @@ import type { CropKey } from "./crops";
  * 2021 to 2024 from NASS crop reports. Kansas wheat: NASS Kansas Wheat History (2024 is 43, the NASS history table).
  * Years not verified against a NASS document are left out on purpose.
  */
+import { NASS_SERIES, type NassSeries } from "./nass-data";
+export { NASS_SERIES };
+
+const series = (crop: CropKey, state: string) => NASS_SERIES.find((x) => x.crop === crop && x.state === state)!;
+/** The single-place check shown first: Iowa corn, Iowa soybeans, Kansas winter wheat. */
 export const NASS: Record<CropKey, { place: string; location: string; years: Record<number, number> }> = {
-  maize: {
-    place: "Iowa corn",
-    location: "iowa",
-    years: { 2012: 137, 2013: 165, 2014: 178, 2015: 192, 2016: 203, 2017: 202, 2018: 196, 2021: 205, 2022: 200, 2023: 201, 2024: 211 },
-  },
-  soy: {
-    place: "Iowa soybeans",
-    location: "iowa",
-    // Iowa Soybean Association's table of NASS state yields (2021 is the NASS figure of 62; later revisions put it near 63)
-    years: { 2012: 45, 2013: 45.5, 2014: 51.5, 2015: 56.5, 2016: 60.5, 2017: 56.5, 2018: 57, 2019: 55, 2020: 53, 2021: 62, 2022: 58.5, 2023: 58, 2024: 60 },
-  },
-  wheat: {
-    place: "Kansas winter wheat",
-    location: "kansas",
-    years: { 2014: 28, 2015: 37, 2016: 57, 2017: 48, 2018: 38, 2019: 52, 2020: 45, 2021: 52, 2022: 37, 2023: 35, 2024: 43 },
-  },
+  maize: { place: "Iowa corn", location: "iowa", years: series("maize", "Iowa").years },
+  soy: { place: "Iowa soybeans", location: "iowa", years: series("soy", "Iowa").years },
+  wheat: { place: "Kansas winter wheat", location: "kansas", years: series("wheat", "Kansas").years },
 };
+export const seriesFor = (crop: CropKey): NassSeries[] => NASS_SERIES.filter((x) => x.crop === crop);
 
 /** bu/ac to t/ha of dry grain: 56 lb bushel at 15.5% moisture for corn, 60 lb at 13.5% for wheat and 13% for soybeans. */
 export const buAcToDryTHa = (crop: CropKey, bu: number) =>
@@ -46,6 +39,11 @@ export interface ValidationResult {
   r: number;
   /** Mean absolute difference of anomalies, as a fraction. */
   mae: number;
+  /** Observed anomaly regressed on modelled anomaly: 1 means the model's swings are the right size, below 1 that they are too big. */
+  sensitivity: number;
+  /** NASS trend value in `refYear` (t/ha dry), the level a modern-management model should be compared with, and the model's gap to it. */
+  trendRef: number;
+  levelGap: number;
 }
 
 const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
@@ -54,8 +52,7 @@ const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
  * Compare modelled weather-driven yield with state averages. Observed yields carry a technology trend the model does not
  * have, so both are turned into departures first: observed from its linear trend, modelled from its own mean.
  */
-export function validate(crop: CropKey, modelled: Map<number, number>): ValidationResult | null {
-  const obs = NASS[crop].years;
+export function validate(crop: CropKey, modelled: Map<number, number>, obs: Record<number, number> = NASS[crop].years, refYear = 2020): ValidationResult | null {
   const years = Object.keys(obs).map(Number).filter((y) => modelled.has(y)).sort((a, b) => a - b);
   if (years.length < 4) return null;
   const o = years.map((y) => buAcToDryTHa(crop, obs[y]!));
@@ -69,5 +66,7 @@ export function validate(crop: CropKey, modelled: Map<number, number>): Validati
   const am = mean(a), bm = mean(b);
   const cov = a.reduce((s, x, i) => s + (x - am) * (b[i]! - bm), 0);
   const r = cov / Math.sqrt(a.reduce((s, x) => s + (x - am) ** 2, 0) * b.reduce((s, x) => s + (x - bm) ** 2, 0));
-  return { rows, meanObserved: om, meanModelled: mm, r, mae: mean(rows.map((x) => Math.abs(x.obsAnomaly - x.modAnomaly))) };
+  const varB = b.reduce((s2, x) => s2 + (x - bm) ** 2, 0);
+  const trendRef = trend(refYear);
+  return { rows, meanObserved: om, meanModelled: mm, r, mae: mean(rows.map((x) => Math.abs(x.obsAnomaly - x.modAnomaly))), sensitivity: varB > 0 ? cov / varB : NaN, trendRef, levelGap: mm / trendRef - 1 };
 }

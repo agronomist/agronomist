@@ -10,7 +10,7 @@ import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemb
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
-import { NASS, validate } from "./validation";
+import { NASS, buAcToDryTHa, seriesFor, validate } from "./validation";
 import { inject } from "@vercel/analytics";
 import { createEasy, type Easy } from "./easy";
 
@@ -692,6 +692,40 @@ async function runValidation() {
     `</tbody></table><p class="note2">t/ha dry grain. A state average mixes many soils and managements, so the model is expected to follow the direction of the years, not their size.</p>`;
 }
 
+async function runValidationAll() {
+  const out = $("valAllOut");
+  const cfg = CROPS[crop];
+  const list = seriesFor(crop);
+  const rows: { state: string; n: number; r: number; sens: number; trend: number; model: number; gap: number }[] = [];
+  const notes: string[] = [];
+  const toBu = (v: number) => v / buAcToDryTHa(crop, 1);
+  for (const [i, s] of list.entries()) {
+    out.textContent = `Running ${s.state} (${i + 1} of ${list.length})…`;
+    const loc = locationByKey(s.location);
+    const got = await loadEnsembles(cfg, loc);
+    if (got.base.source !== "real") {
+      notes.push(`${s.state}: real weather did not load`);
+      continue;
+    }
+    const d = defaultPlan(crop);
+    const e = evaluate(cfg, loc, soilFor(loc), { ...d, id: "v", name: "default" }, got.base, prices);
+    const v = validate(crop, new Map(e.outcomes.map((o) => [o.label, o.yieldTHa])), s.years);
+    if (!v) {
+      notes.push(`${s.state}: too few overlapping years`);
+      continue;
+    }
+    rows.push({ state: s.state, n: v.rows.length, r: v.r, sens: v.sensitivity, trend: toBu(v.trendRef), model: toBu(v.meanModelled), gap: v.levelGap });
+  }
+  const f = (x: number) => `${x >= 0 ? "+" : ""}${Math.round(x * 100)}%`;
+  const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+  const csv = ["state,years,r,sensitivity,nass_trend_2020_bu_ac,model_bu_ac,level_gap", ...rows.map((r) => `${r.state},${r.n},${r.r.toFixed(2)},${r.sens.toFixed(2)},${r.trend.toFixed(0)},${r.model.toFixed(0)},${r.gap.toFixed(3)}`)].join("\n");
+  out.innerHTML =
+    `<table class="cmp"><thead><tr><th>State</th><th>Years</th><th>r</th><th>Swing size</th><th>NASS trend, 2020</th><th>Model</th><th>Level gap</th></tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${r.state}</td><td>${r.n}</td><td>${r.r.toFixed(2)}</td><td>${r.sens.toFixed(2)}</td><td>${Math.round(r.trend)} bu/ac</td><td>${Math.round(r.model)} bu/ac</td><td>${f(r.gap)}</td></tr>`).join("") +
+    `</tbody></table>` +
+    (rows.length ? `<p class="note2">Average r ${avg(rows.map((r) => r.r)).toFixed(2)}; average swing size ${avg(rows.map((r) => r.sens)).toFixed(2)}; average level gap ${f(avg(rows.map((r) => r.gap)))}. ${notes.join("; ")}</p><textarea readonly rows="${rows.length + 2}" style="width:100%;font:12px monospace" onfocus="this.select()">${csv}</textarea>` : `<p class="note2">${notes.join("; ") || "Nothing ran."}</p>`);
+}
+
 function readPrice(id: string, fallback: number) {
   const v = Number(($(id) as HTMLInputElement).value);
   return Number.isFinite(v) && v >= 0 ? v : fallback;
@@ -813,6 +847,11 @@ function init() {
       scheduleRefresh();
     });
   $("runVal").addEventListener("click", () => void runValidation());
+  $("runValAll").addEventListener("click", (e) => {
+    const b = e.target as HTMLButtonElement;
+    b.disabled = true;
+    void runValidationAll().finally(() => (b.disabled = false));
+  });
   const yc = $("c-years") as HTMLCanvasElement;
   yc.addEventListener("click", (e) => {
     const first = evals[0];
