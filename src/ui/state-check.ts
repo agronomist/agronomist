@@ -5,7 +5,9 @@ import { evaluate, type Prices } from "./decision";
 import { loadEnsembles } from "./ensemble";
 import { locationByKey, registerLocation, soilFor, type Location } from "./locations";
 import type { Management } from "./model-run";
+import { sowingDays } from "./planting";
 import { irrShare, stateYields, type PointRuns } from "./state-model";
+import { simulateOption } from "./model-run";
 import { STATE_PROFILES } from "./states";
 import { seriesFor, validate, buAcToDryTHa, type ValidationResult } from "./validation";
 
@@ -15,6 +17,8 @@ export interface StateRow {
   preset: ValidationResult | null;
   points: ValidationResult | null;
   full: ValidationResult | null;
+  /** Same as `full`, with the sowing date moved year by year (wet or cold springs sow later). */
+  timed: ValidationResult | null;
   note: string;
 }
 
@@ -41,10 +45,14 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
     onProgress(`${s.state} (${i + 1} of ${list.length})…`);
     const prof = STATE_PROFILES.find((p) => p.state === s.state)!;
     const preset = locationByKey(s.location);
-    const row: StateRow = { state: s.state, years: Object.keys(s.years).length, preset: null, points: null, full: null, note: "" };
+    const row: StateRow = { state: s.state, years: Object.keys(s.years).length, preset: null, points: null, full: null, timed: null, note: "" };
     const run = (loc: Location, soil: SoilParams, ens: Awaited<ReturnType<typeof loadEnsembles>>["base"], m: Management) =>
       new Map(evaluate(cfg, loc, soil, { ...m, id: "v", name: "v" }, ens, prices).outcomes.map((o) => [o.label, o.yieldTHa] as [number, number]));
 
+    const runTimed = (loc: Location, soil: SoilParams, ens: Awaited<ReturnType<typeof loadEnsembles>>["base"], m: Management) => {
+      const sow = sowingDays(crop, s.state, ens.years, cfg.yearStart, m.sowDoy);
+      return new Map(ens.years.map((y) => [y.label, simulateOption(cfg, loc, soil, { ...m, sowDoy: sow.get(y.label)!.doy }, y.weather).yieldTHa] as [number, number]));
+    };
     const got = await loadEnsembles(cfg, preset);
     if (got.base.source !== "real") {
       row.note = "real weather did not load";
@@ -54,6 +62,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
     row.preset = validate(crop, run(preset, soilFor(preset), got.base, plan), s.years);
 
     const runs: PointRuns[] = [];
+    const timedRuns: PointRuns[] = [];
     let soilMisses = 0;
     for (const pt of prof.points) {
       const sp = await pointSoil(pt.lat, pt.lon);
@@ -70,12 +79,20 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
         poor: prof.untiledWet > 0 ? run(loc, soil, e.base, { ...plan, poorDrainage: true }) : undefined,
         irrigated: irr > 0 ? run(loc, soil, e.base, { ...plan, irrigated: true }) : undefined,
       });
+      timedRuns.push({
+        w: pt.w,
+        irr,
+        free: runTimed(loc, soil, e.base, plan),
+        poor: prof.untiledWet > 0 ? runTimed(loc, soil, e.base, { ...plan, poorDrainage: true }) : undefined,
+        irrigated: irr > 0 ? runTimed(loc, soil, e.base, { ...plan, irrigated: true }) : undefined,
+      });
     }
     if (runs.length < prof.points.length) row.note = `${prof.points.length - runs.length} point(s) had no real weather`;
     if (soilMisses) row.note += `${row.note ? "; " : ""}soil data missing at ${soilMisses} point(s), preset soil used`;
     if (runs.length) {
       row.points = validate(crop, stateYields(runs, prof, "points"), s.years);
       row.full = validate(crop, stateYields(runs, prof, "full"), s.years);
+      row.timed = validate(crop, stateYields(timedRuns, prof, "full"), s.years);
     }
     rows.push(row);
   }

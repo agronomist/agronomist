@@ -711,12 +711,12 @@ async function runValidationAll() {
   };
   const ok = rows.filter((r) => r.preset || r.points);
   const absAvg = (g: (r: StateRow) => number | undefined) => avg(ok.map((r) => (g(r) === undefined ? undefined : Math.abs(g(r)!))));
-  const csv = ["state,years,r_one,gap_one,r_points,gap_points,r_full,gap_full,swing_full,note", ...rows.map((r) => [r.state, r.years, r2(r.preset?.r), r.preset?.levelGap.toFixed(3), r2(r.points?.r), r.points?.levelGap.toFixed(3), r2(r.full?.r), r.full?.levelGap.toFixed(3), r2(r.full?.sensitivity), r.note].join(","))].join("\n");
+  const csv = ["state,years,r_one,gap_one,r_points,gap_points,r_full,gap_full,r_timed,gap_timed,swing_timed,note", ...rows.map((r) => [r.state, r.years, r2(r.preset?.r), r.preset?.levelGap.toFixed(3), r2(r.points?.r), r.points?.levelGap.toFixed(3), r2(r.full?.r), r.full?.levelGap.toFixed(3), r2(r.timed?.r), r.timed?.levelGap.toFixed(3), r2(r.timed?.sensitivity), r.note].join(","))].join("\n");
   const cell = (v: ValidationResult | null) => (v ? `r ${v.r.toFixed(2)} · ${f(v.levelGap)}` : "n/a");
   out.innerHTML =
-    `<table class="cmp"><thead><tr><th>State</th><th>Years</th><th>One point</th><th>Weighted points</th><th>+ irrigation and drainage</th><th>Swing size</th></tr></thead><tbody>` +
-    rows.map((r) => `<tr><td>${r.state}</td><td>${r.years}</td><td>${cell(r.preset)}</td><td>${cell(r.points)}</td><td>${cell(r.full)}</td><td>${r2(r.full?.sensitivity)}</td></tr>`).join("") +
-    `</tbody></table><p class="note2">Each cell is the correlation of year-to-year departures (r) and the model's average level against the NASS trend extended to 2020. Mean absolute level gap: one point ${f(absAvg((r) => r.preset?.levelGap))}, weighted points ${f(absAvg((r) => r.points?.levelGap))}, with irrigation and drainage ${f(absAvg((r) => r.full?.levelGap))}. Average r: ${r2(avg(ok.map((r) => r.preset?.r)))}, ${r2(avg(ok.map((r) => r.points?.r)))}, ${r2(avg(ok.map((r) => r.full?.r)))}. ${rows.filter((r) => r.note).map((r) => `${r.state}: ${r.note}.`).join(" ")}</p>` +
+    `<table class="cmp"><thead><tr><th>State</th><th>Years</th><th>One point</th><th>Weighted points</th><th>+ irrigation and drainage</th><th>+ year-by-year sowing</th><th>Swing size</th></tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${r.state}</td><td>${r.years}</td><td>${cell(r.preset)}</td><td>${cell(r.points)}</td><td>${cell(r.full)}</td><td>${cell(r.timed)}</td><td>${r2(r.timed?.sensitivity)}</td></tr>`).join("") +
+    `</tbody></table><p class="note2">Each cell is the correlation of year-to-year departures (r) and the model's average level against the NASS trend extended to 2020. Mean absolute level gap: one point ${f(absAvg((r) => r.preset?.levelGap))}, weighted points ${f(absAvg((r) => r.points?.levelGap))}, with irrigation and drainage ${f(absAvg((r) => r.full?.levelGap))}, with year-by-year sowing ${f(absAvg((r) => r.timed?.levelGap))}. Average r: ${r2(avg(ok.map((r) => r.preset?.r)))}, ${r2(avg(ok.map((r) => r.points?.r)))}, ${r2(avg(ok.map((r) => r.full?.r)))}, ${r2(avg(ok.map((r) => r.timed?.r)))}. ${rows.filter((r) => r.note).map((r) => `${r.state}: ${r.note}.`).join(" ")}</p>` +
     `<textarea readonly rows="${rows.length + 2}" style="width:100%;font:12px monospace" onfocus="this.select()">${csv}</textarea>`;
 }
 
