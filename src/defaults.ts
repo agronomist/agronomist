@@ -35,9 +35,10 @@ export const maizeDefaults: CropParams = {
 
   kernelWindowBefore: 200, // about 2 weeks before silking in warm weather
   kernelWindowAfter: 150, // about 10 days after
-  kernelSlope: 200, // calibrated to Iowa yield level (see test/calibration.test.ts); ~3900 kernels m-2 at 25 g m-2 d-1 above threshold
-  kernelCgrThreshold: 5, // PLACEHOLDER
+  kernelSlope: 408, // initial slope of the saturating curve, set so the median Iowa year keeps its kernel number (see test/calibration.test.ts)
+  kernelCgrThreshold: 7.5, // g m-2 d-1 at the reference density of 7.5 plants m-2, i.e. 1 g per plant per day (Andrade et al. 1999: threshold for kernel set about 1 g d-1)
   kernelMax: 4500,
+  kernelAsymptote: 5000, // PLACEHOLDER ceiling of the curve, about 670 kernels per plant at 7.5 plants m-2
   potentialKernelWeight: 0.32,
 
   frostKillTemp: -2,

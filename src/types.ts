@@ -69,6 +69,8 @@ export interface CropParams {
   kernelSlope: number; // kernels m-2 per (g m-2 d-1) of mean crop growth rate above the threshold (PLACEHOLDER)
   kernelCgrThreshold: number; // g m-2 d-1 (PLACEHOLDER)
   kernelMax: number; // upper bound on kernels m-2
+  /** If set, kernel number follows a saturating curve of growth rate above the threshold (initial slope kernelSlope, ceiling this value) instead of a straight line cut off at kernelMax. Andrade et al. 1999 found the plant-level relationship curvilinear. */
+  kernelAsymptote?: number;
   potentialKernelWeight: number; // g DM per kernel; grain sink = kernels * this
 
   // --- Frost ---

@@ -397,7 +397,13 @@ export function simulate(input: SimulationInput): SimulationResult {
       if (!windowClosed && dvs > winEndDvs) {
         windowClosed = true;
         const meanCgr = cp.days > 0 ? cp.cgr / cp.days : 0;
-        kernels = clamp(p.kernelSlope * (meanCgr - p.kernelCgrThreshold * setScale.threshold), 0, p.kernelMax * setScale.max) * grainSet;
+        const above = Math.max(0, meanCgr - p.kernelCgrThreshold * setScale.threshold);
+        if (p.kernelAsymptote !== undefined) {
+          const ceiling = p.kernelAsymptote * setScale.max;
+          kernels = ceiling * (1 - Math.exp((-p.kernelSlope * above) / ceiling)) * grainSet;
+        } else {
+          kernels = clamp(p.kernelSlope * above, 0, p.kernelMax * setScale.max) * grainSet;
+        }
         // kernels aborted by heat take the assimilate already stored for them with them
         if (p.heatStorageLoss) {
           const lost = storage * (1 - grainSet) * p.heatStorageLoss;

@@ -39,7 +39,7 @@ describe("critical window and kernel number", () => {
     expect(after.every((d) => d.kernels === after[0]!.kernels)).toBe(true);
     expect(after[0]!.kernels).toBeCloseTo(cp.kernelsPerM2, 6);
     expect(r.days.filter((d) => d.day < cp.endDay).every((d) => d.kernels === 0)).toBe(true);
-    expect(cp.kernelsPerM2).toBeGreaterThan(500);
+    expect(cp.kernelsPerM2).toBeGreaterThan(100); // this plain test season grows only a little above the 1 g plant-1 d-1 threshold
     expect(cp.kernelsPerM2).toBeLessThanOrEqual(maizeDefaults.kernelMax);
   });
 
@@ -245,3 +245,23 @@ describe("canopy cap and rooting", () => {
     expect(Math.min(...early.map((d) => d.ws))).toBeGreaterThan(0.3);
   });
 });
+
+describe("kernel set curve (Andrade et al. 1999)", () => {
+  const base = sowAt(120);
+  const kernelsAt = (f: number) => sim(base.map((d) => ({ ...d, srad: d.srad * f, rain: Math.max(d.rain, 8) }))).criticalPeriod.kernelsPerM2;
+
+  it("rises with growth rate with diminishing returns", () => {
+    const k = [0.5, 0.7, 0.9, 1.1, 1.3].map(kernelsAt);
+    for (let i = 1; i < k.length; i++) expect(k[i]!).toBeGreaterThan(k[i - 1]!);
+    const steps = k.slice(1).map((v, i) => v - k[i]!);
+    expect(steps[steps.length - 1]!).toBeLessThan(steps[0]!);
+  });
+
+  it("never exceeds the ceiling and has a threshold of about 1 g per plant per day", () => {
+    expect(kernelsAt(3)).toBeLessThanOrEqual(maizeDefaults.kernelAsymptote!);
+    const thrPerPlant = maizeDefaults.kernelCgrThreshold / 7.5;
+    expect(thrPerPlant).toBeGreaterThan(0.9);
+    expect(thrPerPlant).toBeLessThan(1.1);
+  });
+});
+
