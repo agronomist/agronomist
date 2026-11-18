@@ -278,7 +278,10 @@ export function simulate(input: SimulationInput): SimulationResult {
       const relAvail = maxAvail > 0 ? availRoot / maxAvail : 0;
       const ks = clamp(relAvail / p.depletionP, 0, 1);
       const tPot = p.kcb * fi * et0 * co2f.transpiration;
-      transpiration = Math.min(tPot * ks, availRoot);
+      // roots can only take so much per layer per day: the profile then dries from the top down and stress sets in gradually
+      if (p.uptakeRate !== undefined) for (let l = 0; l < L.length; l++) cap[l]! *= p.uptakeRate;
+      const supply = p.uptakeRate !== undefined ? cap.reduce((a, b) => a + b, 0) : availRoot;
+      transpiration = Math.min(tPot * ks, supply);
 
       // allocate demand across layers by weight, capped by each layer's supply
       const weights = cap.map((c, l) => c * Math.exp((-p.rootDecay * tops[l]!) / rootDepth));
@@ -299,6 +302,20 @@ export function simulate(input: SimulationInput): SimulationResult {
         remaining -= taken;
       }
       ws = tPot > 1e-9 ? Math.min(1, transpiration / tPot) : 1;
+    }
+    // ---- Unsaturated flow upward: a drier layer draws from the wetter one below it ----
+    if (soil.upwardFlux) {
+      for (let l = 0; l < L.length - 1; l++) {
+        const relUp = (sw[l]! - wp[l]!) / (fc[l]! - wp[l]!);
+        const relLo = (sw[l + 1]! - wp[l + 1]!) / (fc[l + 1]! - wp[l + 1]!);
+        if (relLo <= relUp) continue;
+        const capAvg = 0.5 * (fc[l]! - wp[l]! + fc[l + 1]! - wp[l + 1]!);
+        // conductivity falls steeply as soil dries: flux follows the squared mean wetness of the two layers, so a dry crust passes little
+        const cond = (0.5 * (relUp + relLo)) ** 2;
+        const q = Math.min(soil.upwardFlux * cond * (relLo - relUp) * capAvg, Math.max(0, sw[l + 1]! - wp[l + 1]!) * 0.5, Math.max(0, fc[l]! - sw[l]!));
+        sw[l]! += q;
+        sw[l + 1]! -= q;
+      }
     }
     // ---- Aeration: a root zone holding water above field capacity starves roots of oxygen ----
     let aeration = 1;

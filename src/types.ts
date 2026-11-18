@@ -65,6 +65,8 @@ export interface CropParams {
   canopyCoupling?: number;
   /** If set, supply-limited growth also falls with vapour pressure deficit (transpiration efficiency is about 1/VPD). Exponent on the VPD ratio; 0 or unset is off. */
   vpdSensitivity?: number;
+  /** Share of the available water in a rooted layer that the roots can take in a day (the `kl` of APSIM, about 0.05 to 0.12). Unset = no limit: a layer can be emptied in one day. */
+  uptakeRate?: number;
   /** Fractional change in radiation use efficiency per unit of diffuse fraction of the day's light (see radiation.ts); 0 or unset is off. Needs `latitude`. */
   diffuseGain?: number;
   heatDamageRate: number; // fraction of kernel set lost per °C above threshold per day, inside the critical window
@@ -194,6 +196,8 @@ export interface SoilParams {
   evapStage1Mm?: number;
   /** Stage 2 evaporation coefficient, mm d-0.5 (default 3.5) */
   evapAlpha?: number;
+  /** Upward movement of unsaturated water between neighbouring layers, share of the wetness difference moved per day at full wetness, falling with the square of the mean wetness (about 0.1 to 0.5). Unset = none: a dry layer only refills from rain. */
+  upwardFlux?: number;
 }
 
 export interface WaterTable {

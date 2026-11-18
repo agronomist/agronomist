@@ -113,3 +113,43 @@ describe("two-stage soil evaporation", () => {
     expect(run(2, { evapStage1Mm: 9 }).balance.soilEvap).not.toBe(run(2).balance.soilEvap);
   });
 });
+
+describe("dry-down", () => {
+  const dry = (crop = {}, soil = {}) =>
+    simulate({ weather: syntheticWeather({ rainMean: 0, seed: 5 }), crop: { ...maizeDefaults, ...crop }, soil: { ...loamDefaults, initialFraction: 1, ...soil } });
+
+  it("is unchanged when neither switch is set", () => {
+    expect(dry({ uptakeRate: undefined }, { upwardFlux: undefined }).days.map((d) => d.soilWater)).toEqual(dry().days.map((d) => d.soilWater));
+  });
+
+  it("an uptake limit slows the draw on a layer: it never gives up more than the rate allows in a day", () => {
+    const rate = 0.05;
+    const r = dry({ uptakeRate: rate });
+    const l0 = r.days.map((d) => d.soilWaterLayers);
+    // total water lost from the profile in a day cannot exceed the limit summed over layers plus evaporation (a few mm)
+    for (let i = 1; i < l0.length; i++) {
+      const lost = l0[i - 1]!.reduce((a, b) => a + b, 0) - l0[i]!.reduce((a, b) => a + b, 0);
+      const cap = l0[i - 1]!.reduce((a, b) => a + b, 0) * rate + 8;
+      expect(lost).toBeLessThanOrEqual(cap + 1e-6);
+    }
+  });
+
+  it("a tight uptake limit lowers season transpiration in a dry year", () => {
+    expect(dry({ uptakeRate: 0.04 }).balance.transpiration).toBeLessThan(dry().balance.transpiration);
+  });
+
+  it("upward flow refills a dry top layer from the wet layer below and keeps the water balance closed", () => {
+    const layers = loamDefaults.layers.length;
+    const initialWater = loamDefaults.layers.map((l, k) => (k === 0 ? l.wiltingPoint * l.thickness : l.fieldCapacity * l.thickness));
+    const base = { initialWater } as const;
+    const withFlux = dry({}, { ...base, upwardFlux: 0.1 });
+    const without = dry({}, base);
+    expect(layers).toBeGreaterThan(1);
+    // the second day: the top layer holds more with the flux on
+    expect(withFlux.days[3]!.soilWaterLayers[0]!).toBeGreaterThan(without.days[3]!.soilWaterLayers[0]!);
+    const b = withFlux.balance;
+    expect(b.rain + b.irrigation + b.capillary - b.runoff - b.transpiration - b.soilEvap - b.drainage).toBeCloseTo(b.storageChange, 6);
+    // no layer is pushed above field capacity by the flux
+    for (const d of withFlux.days) d.soilWaterLayers.forEach((v, k) => expect(v).toBeLessThanOrEqual(loamDefaults.layers[k]!.fieldCapacity * loamDefaults.layers[k]!.thickness + 1e-6));
+  });
+});

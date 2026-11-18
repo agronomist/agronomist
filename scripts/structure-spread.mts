@@ -41,6 +41,10 @@ const waterVariants: Record<string, Parameters<typeof setWater>[0]> = {
   "water: wet autumn start (0.7)": { autumnFraction: 0.7 },
   "water: roots grow with heat, 1.5 mm/degree-day": { rootGrowthMmPerTT: 1.5 },
   "water: roots grow with heat, 2.2 mm/degree-day": { rootGrowthMmPerTT: 2.2 },
+  "dry-down: root uptake limit 0.06/day": { uptakeRate: 0.06 },
+  "dry-down: root uptake limit 0.10/day": { uptakeRate: 0.1 },
+  "dry-down: upward flow 0.05": { upwardFlux: 0.05 },
+  "dry-down: upward flow 0.12": { upwardFlux: 0.12 },
   "water: two-stage evaporation, 6 mm": { evapStage1Mm: 6 },
   "water: two-stage evaporation, 12 mm": { evapStage1Mm: 12 },
 };
