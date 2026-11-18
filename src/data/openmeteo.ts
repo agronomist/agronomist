@@ -18,14 +18,17 @@ export class WeatherDataError extends Error {
   }
 }
 
+/** Optional daily mean dew point (°C). Asked for separately because its daily name is not documented: if the archive refuses it the request is repeated without. */
+export const DEWPOINT_VAR = "dew_point_2m_mean";
+
 /** Build the archive request URL. Dates are YYYY-MM-DD. */
-export function openMeteoUrl(lat: number, lon: number, start: string, end: string): string {
+export function openMeteoUrl(lat: number, lon: number, start: string, end: string, withDewpoint = false): string {
   const q = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
     start_date: start,
     end_date: end,
-    daily: DAILY_VARS.join(","),
+    daily: (withDewpoint ? [...DAILY_VARS, DEWPOINT_VAR] : DAILY_VARS).join(","),
     timezone: "UTC",
   });
   return `${OPEN_METEO_ARCHIVE}?${q.toString()}`;
@@ -86,6 +89,7 @@ export function parseOpenMeteo(json: unknown): WeatherDay[] {
   const srad = fillGaps(d.shortwave_radiation_sum as (number | null)[], "shortwave_radiation_sum");
   const rain = d.precipitation_sum as (number | null)[];
   const et0 = d.et0_fao_evapotranspiration as (number | null)[];
+  const dew = Array.isArray(d[DEWPOINT_VAR]) && d[DEWPOINT_VAR]!.length === d.time.length ? (d[DEWPOINT_VAR] as (number | null)[]) : undefined;
 
   return (d.time as string[]).map((t, i) => {
     const day: WeatherDay = {
@@ -97,6 +101,8 @@ export function parseOpenMeteo(json: unknown): WeatherDay[] {
     };
     const e = et0[i];
     if (e !== null && e !== undefined) day.et0 = Math.max(0, e);
+    const dp = dew?.[i];
+    if (dp !== null && dp !== undefined) day.dewpoint = Math.min(dp, day.tmax);
     return day;
   });
 }

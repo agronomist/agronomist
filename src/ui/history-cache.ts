@@ -23,12 +23,14 @@ function open(): Promise<IDBDatabase | null> {
   });
 }
 
+// records saved before dew point was fetched lack it: a new prefix makes them miss and refetch
+const K = (key: string) => `dew1:${key}`;
 export async function cacheGet(key: string): Promise<History | null> {
   const db = await open();
   if (!db) return null;
   return new Promise((resolve) => {
     try {
-      const q = db.transaction(STORE).objectStore(STORE).get(key);
+      const q = db.transaction(STORE).objectStore(STORE).get(K(key));
       q.onsuccess = () => {
         const v = q.result as { at: number; h: PackedHistory } | undefined;
         resolve(v && Date.now() - v.at < MAX_AGE_MS ? unpackHistory(v.h) : null);
@@ -44,7 +46,7 @@ export async function cachePut(key: string, h: History): Promise<void> {
   const db = await open();
   if (!db) return;
   try {
-    db.transaction(STORE, "readwrite").objectStore(STORE).put({ at: Date.now(), h: packHistory(h) }, key);
+    db.transaction(STORE, "readwrite").objectStore(STORE).put({ at: Date.now(), h: packHistory(h) }, K(key));
   } catch {
     /* storage full or blocked: carry on without it */
   }

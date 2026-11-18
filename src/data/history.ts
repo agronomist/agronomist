@@ -1,6 +1,7 @@
 import type { WeatherDay } from "../types";
 import { getJson, type HttpOptions } from "./http";
 import { openMeteoUrl, parseOpenMeteo } from "./openmeteo";
+import { HttpError } from "./http";
 
 /**
  * Daily weather by calendar year at one point. Years are 365 days long: 29 February is dropped so every year lines up
@@ -50,6 +51,21 @@ function trimTrailingNulls(json: unknown): unknown {
 }
 
 let relayBroken = false;
+// whether the archive accepts the daily dew point request (unknown until tried)
+let dewOk: boolean | undefined;
+async function getChunk(lat: number, lon: number, a: string, b: string, o: HttpOptions): Promise<unknown> {
+  if (dewOk !== false) {
+    try {
+      const r = await getArchive(openMeteoUrl(lat, lon, a, b, true), o);
+      dewOk = true;
+      return r;
+    } catch (e) {
+      if (!(e instanceof HttpError && e.status >= 400 && e.status < 500 && e.status !== 429)) throw e;
+      dewOk = false;
+    }
+  }
+  return getArchive(openMeteoUrl(lat, lon, a, b), o);
+}
 /**
  * On the hosted site, ask the site's own relay first (it holds the paid key, so it is not rate limited); if the relay is
  * missing or fails, or outside a browser, go to the public archive directly.
@@ -59,8 +75,10 @@ async function getArchive(url: string, o: HttpOptions): Promise<unknown> {
   if (!relayBroken && o.fetch === undefined && loc && /^https?:/.test(loc.protocol)) {
     try {
       return await getJson(url.replace(/^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/, "/api/om"), { ...o, retries: 1 });
-    } catch {
-      relayBroken = true;
+    } catch (e) {
+      // a refused request (4xx, such as an unknown variable) says nothing about the relay itself
+      if (!(e instanceof HttpError && e.status >= 400 && e.status < 500 && e.status !== 429)) relayBroken = true;
+      else throw e;
     }
   }
   return getJson(url, o);
@@ -88,7 +106,7 @@ export async function fetchHistory(
     const y1 = Math.min(lastYear, y + 11);
     const endDate = y1 === lastYear ? iso(end) : `${y1}-12-31`;
     jobs.push(() =>
-      getArchive(openMeteoUrl(lat, lon, `${y}-01-01`, endDate), o).then((raw) => {
+      getChunk(lat, lon, `${y}-01-01`, endDate, o).then((raw) => {
         const json = trimTrailingNulls(raw);
         const times = (json as { daily: { time: string[] } }).daily.time;
         return { times, days: times.length ? parseOpenMeteo(json) : [] };

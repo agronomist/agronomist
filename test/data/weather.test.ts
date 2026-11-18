@@ -104,3 +104,17 @@ describe("HTTP retries", () => {
     expect(urls[0]).toContain("archive-api.open-meteo.com");
   });
 });
+
+describe("dew point", () => {
+  it("is asked for only when requested, and read when the archive returns it", () => {
+    expect(new URL(openMeteoUrl(40, -90, "2020-05-01", "2020-05-10")).searchParams.get("daily")).not.toContain("dew_point_2m_mean");
+    expect(new URL(openMeteoUrl(40, -90, "2020-05-01", "2020-05-10", true)).searchParams.get("daily")).toContain("dew_point_2m_mean");
+    const r = openMeteoResponse({ days: 5 }) as { daily: Record<string, unknown[]> };
+    r.daily.dew_point_2m_mean = [8, 9, null, 50, 10];
+    const w = parseOpenMeteo(r);
+    expect(w[0]!.dewpoint).toBe(8);
+    expect(w[2]!.dewpoint).toBeUndefined();
+    expect(w[3]!.dewpoint).toBeLessThanOrEqual(w[3]!.tmax); // never above the air temperature
+    expect(parseOpenMeteo(openMeteoResponse({ days: 5 }))[0]!.dewpoint).toBeUndefined();
+  });
+});

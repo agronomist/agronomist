@@ -30,6 +30,7 @@ const dims: Dim[] = [
   { name: "irrScale", lo: 0.5, hi: 1.5, base: 1, set: (v, t) => void (t.irrScale = v) },
   { name: "canopyCoupling", lo: 0.1, hi: 0.6, base: 0.3, set: (v, _t, s) => void (s.canopyCoupling = v) },
   { name: "heatDamageRate", lo: 0.004, hi: 0.014, base: 0.0088, set: (v, _t, s) => void (s.heatDamageRate = v) },
+  { name: "vpdSensitivity", lo: 0, hi: 1, base: 0, set: (v, _t, s) => void (s.vpdSensitivity = v) },
   { name: "diffuseGain", lo: 0, hi: 0.6, base: 0.3, set: (v, _t, s) => void (s.diffuseGain = v) },
   { name: "stemReserveFraction", lo: 0, hi: 0.25, base: 0, set: (v, _t, s) => void ((s.stemReserveFraction = v), (s.stemRemobRate = 3)) },
 ];

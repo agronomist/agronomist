@@ -23,6 +23,8 @@ const variants: Record<string, Record<string, unknown> | null> = {
   "canopy heat coupling off": { canopyCoupling: undefined },
   "canopy heat coupling x2": { canopyCoupling: 0.6 },
   "vpd efficiency on": { vpdSensitivity: 0.5 },
+  "VPD cuts growth, exponent 0.5 (needs dew point)": { vpdSensitivity: 0.5 },
+  "VPD cuts growth, exponent 1 (needs dew point)": { vpdSensitivity: 1 },
   "diffuse light off": { diffuseGain: 0 },
   "diffuse light x2": { diffuseGain: 0.6 },
   "kernel weight capped at 1.4x": { kernelWeightMaxRatio: 1.4 },
