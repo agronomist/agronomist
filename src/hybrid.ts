@@ -10,8 +10,8 @@ export function hybrid(base: CropParams, rm: number): CropParams {
   const d = rm - 110;
   return {
     ...base,
-    ttSilking: base.ttSilking + 8 * d,
-    ttMaturity: base.ttMaturity + 6 * d,
+    ttSilking: base.ttSilking + 5.5 * d,
+    ttMaturity: base.ttMaturity + 8.5 * d,
     potentialKernelWeight: base.potentialKernelWeight + 0.0008 * d,
     kernelMax: base.kernelMax + 20 * d,
   };

@@ -3,7 +3,7 @@ import { clamp } from "./draw-util";
 import { LOCATIONS, DEFAULT_LOCATION, climateFacts, availableWaterMm, locationByKey, soilFor } from "./locations";
 import { loadPin, PinError } from "./pin";
 import { createPinMap, type PinMap } from "./map";
-import { CROPS, runSeason, type CropKey, type Run, type Settings } from "./model-run";
+import { CROPS, runSeason, type CropKey, type Management, type Run, type Settings } from "./model-run";
 import { drawBanners, drawScene, frameAt } from "./scene";
 import { createScene3D, type Scene3D } from "./scene3d";
 import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
@@ -12,6 +12,7 @@ import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, str
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
 import { NASS, validate } from "./validation";
 import { inject } from "@vercel/analytics";
+import { createEasy, type Easy } from "./easy";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -33,6 +34,7 @@ let useIn = false;
 let weatherSeq = 0;
 let evals: Evaluation[] = [];
 let nres: NResponse | null = null;
+let easy: Easy | null = null;
 let lossRows: { name: string; k: number; l: Losses }[] = [];
 
 let run: Run;
@@ -205,6 +207,28 @@ async function openMap() {
   } catch (e) {
     $("mapMsg").textContent = `${e instanceof Error ? e.message : e}. You can still type latitude and longitude below.`;
   }
+}
+
+function setMode(m: "easy" | "lab") {
+  document.body.classList.toggle("easy", m === "easy");
+  $("lede").textContent = m === "easy"
+    ? "Pick a place and a crop, set the plan you would normally follow, and see how it does in every real weather year since 1991, next to a better one."
+    : "Compare crop plans on every weather year since 1991, not on one guess. See the typical result, the bad years, the money, and where the yield goes, then play any single season to see why.";
+  if (m === "lab") {
+    window.dispatchEvent(new Event("resize"));
+    scheduleRefresh();
+  } else easy?.refresh();
+}
+
+function openLab(plans: Management[], playLabel?: number) {
+  const base = plans.slice(0, 3).map((m) => newOption(m));
+  if (base.length) options = base;
+  active = 0;
+  playKey = playLabel !== undefined ? yearScenario(playLabel) : "median";
+  renderChips();
+  syncOutputs();
+  setMode("lab");
+  window.scrollTo({ top: 0 });
 }
 
 function updateLocation() {
@@ -590,6 +614,7 @@ function scheduleRefresh() {
   clearTimeout(tSlow);
   tFast = window.setTimeout(refreshFast, 40);
   tSlow = window.setTimeout(refreshSlow, 400);
+  easy?.refresh();
 }
 
 /** Load the real weather record for the current place and crop, showing synthetic seasons meanwhile. */
@@ -684,6 +709,7 @@ function setupCrop(k: CropKey) {
   configureCrop();
   renderChips();
   syncOutputs();
+  easy?.setCrop(k);
 }
 
 function init() {
@@ -711,7 +737,10 @@ function init() {
     recompute(true);
   });
   theme = readTheme();
+  easy = createEasy($("easy"), { env: () => ({ crop, locKey, ens: activeEns(), prices, ensId: ensId() }), openLab });
+  $("backEasy").addEventListener("click", () => setMode("easy"));
   setupCrop(crop);
+  setMode("easy");
   (window as unknown as { __ready?: boolean }).__ready = true;
   recompute(false);
   if (hp) void usePin(Number(hp[1]), Number(hp[2]));
