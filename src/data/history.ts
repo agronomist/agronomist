@@ -69,7 +69,7 @@ async function getArchive(url: string, o: HttpOptions): Promise<unknown> {
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
- * Daily weather from `firstYear` to about a week ago, fetched in chunks of up to 12 years in parallel.
+ * Daily weather from `firstYear` to about a week ago, fetched in chunks of up to 12 years, one after another.
  * The archive lags real time by a few days, so the end date is `now` minus `lagDays`.
  */
 export async function fetchHistory(
@@ -78,14 +78,16 @@ export async function fetchHistory(
   o: HttpOptions & { firstYear?: number; now?: Date; lagDays?: number } = {},
 ): Promise<History> {
   const now = o.now ?? new Date();
-  const end = new Date(now.getTime() - (o.lagDays ?? 7) * 86400000);
+  // the end date steps back to the start of its week, so every request in that week is the same URL and a shared cache can answer it
+  const raw0 = new Date(now.getTime() - (o.lagDays ?? 7) * 86400000);
+  const end = new Date(raw0.getTime() - raw0.getUTCDay() * 86400000);
   const first = o.firstYear ?? 1991;
   const lastYear = end.getUTCFullYear();
-  const jobs: Promise<{ times: string[]; days: WeatherDay[] }>[] = [];
+  const jobs: (() => Promise<{ times: string[]; days: WeatherDay[] }>)[] = [];
   for (let y = first; y <= lastYear; y += 12) {
     const y1 = Math.min(lastYear, y + 11);
     const endDate = y1 === lastYear ? iso(end) : `${y1}-12-31`;
-    jobs.push(
+    jobs.push(() =>
       getArchive(openMeteoUrl(lat, lon, `${y}-01-01`, endDate), o).then((raw) => {
         const json = trimTrailingNulls(raw);
         const times = (json as { daily: { time: string[] } }).daily.time;
@@ -93,7 +95,9 @@ export async function fetchHistory(
       }),
     );
   }
-  const parts = await Promise.all(jobs);
+  // one chunk at a time: three at once is what trips the per-minute limit
+  const parts: { times: string[]; days: WeatherDay[] }[] = [];
+  for (const j of jobs) parts.push(await j());
   return buildHistory(
     parts.flatMap((p) => p.times),
     parts.flatMap((p) => p.days),

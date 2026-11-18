@@ -1,4 +1,5 @@
 import type { WeatherDay } from "../index";
+import { cacheGet, cachePut } from "./history-cache";
 import { fetchHistory, realDay, seasonDays, seasonLabel, seasonStartYear, sourceOf, type DaySource, type History, type SeasonSpec } from "../data/history";
 import type { HttpOptions } from "../data/http";
 import type { CropConfig } from "./crops";
@@ -97,7 +98,14 @@ export interface LoadedEnsembles {
 export function historyFor(loc: Location, o: HttpOptions = {}): Promise<History> {
   let p = histories.get(hkey(loc));
   if (!p) {
-    p = fetchHistory(loc.lat, loc.lon, o);
+    p = (async () => {
+      const kept = await cacheGet(hkey(loc));
+      if (kept) return kept;
+      // when the service says "too many requests", wait and try again rather than give up on the first answer
+      const h = await fetchHistory(loc.lat, loc.lon, { rateLimitWaitMs: 3000, ...o });
+      void cachePut(hkey(loc), h);
+      return h;
+    })();
     histories.set(hkey(loc), p);
     p.catch(() => histories.delete(hkey(loc)));
   }
