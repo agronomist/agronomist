@@ -727,7 +727,11 @@ async function runValidationAll() {
 async function saveSnapshot() {
   const out = $("snapOut");
   try {
-    await collectAll((m) => (out.textContent = `Fetching ${m}`));
+    const failed = await collectAll((m) => (out.textContent = `Fetching ${m}`));
+    if (failed) {
+      out.textContent = `${failed} weather record(s) did not load (Open-Meteo is limiting requests). Wait a minute and press the button again: it keeps what it already has and only fetches the rest.`;
+      return;
+    }
     out.textContent = "Packing…";
     const text = JSON.stringify(await buildSnapshot());
     let blob = new Blob([text], { type: "application/json" });

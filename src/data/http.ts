@@ -14,6 +14,8 @@ export interface HttpOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Give up on one attempt after this many ms (a hung server otherwise waits forever). Default 25000. */
   timeoutMs?: number;
+  /** After a 429 (rate limit), wait this long, doubling each time up to 60 s, instead of the short default. Default 0 (off). */
+  rateLimitWaitMs?: number;
 }
 
 export class HttpError extends Error {
@@ -41,7 +43,8 @@ export async function getJson(url: string, o: HttpOptions = {}): Promise<unknown
   const f: FetchLike =
     o.fetch ?? ((globalThis as unknown as { fetch: FetchLike }).fetch.bind(globalThis) as FetchLike);
   const sleep = o.sleep ?? defaultSleep;
-  const retries = o.retries ?? 3;
+  const wait = o.rateLimitWaitMs ?? 0;
+  const retries = wait > 0 ? Math.max(o.retries ?? 3, 5) : (o.retries ?? 3);
   let lastErr: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -53,7 +56,8 @@ export async function getJson(url: string, o: HttpOptions = {}): Promise<unknown
       if (e instanceof HttpError && e.status !== 429 && e.status < 500) throw e;
       lastErr = e;
     }
-    if (attempt < retries) await sleep(500 * 2 ** attempt);
+    const limited = lastErr instanceof HttpError && lastErr.status === 429 && wait > 0;
+    if (attempt < retries) await sleep(limited ? Math.min(60000, wait * 2 ** attempt) : 500 * 2 ** attempt);
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }

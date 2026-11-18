@@ -51,21 +51,31 @@ export function seedSoilProfile(lat: number, lon: number, s: SoilPointProfile | 
 }
 
 /** Fetch the weather and soil of every point of every state (and each crop's preset place) so a snapshot can be saved. */
-export async function collectAll(onProgress: (msg: string) => void): Promise<void> {
+export async function collectAll(onProgress: (msg: string) => void): Promise<number> {
   const locs: Location[] = [];
   for (const c of Object.keys(CROPS) as CropKey[]) for (const s of seriesFor(c)) locs.push(locationByKey(s.location));
   const pts = STATE_PROFILES.flatMap((p) => p.points.map((pt) => ({ lat: pt.lat, lon: pt.lon, tag: `${p.state} ${pt.name}` })));
   const total = locs.length + pts.length;
   let n = 0;
+  let failed = 0;
+  const gentle = { rateLimitWaitMs: 8000 };
+  const pause = () => new Promise<void>((r) => setTimeout(r, 1500));
+  const seen = new Set<string>();
   for (const l of locs) {
     onProgress(`weather for ${l.name} (${++n} of ${total})…`);
-    await historyFor(l).catch(() => undefined);
+    if (!seen.has(`${l.lat},${l.lon}`)) {
+      seen.add(`${l.lat},${l.lon}`);
+      await historyFor(l, gentle).catch(() => void failed++);
+      await pause();
+    }
   }
   for (const pt of pts) {
     onProgress(`weather and soil for ${pt.tag} (${++n} of ${total})…`);
-    await historyFor({ lat: pt.lat, lon: pt.lon } as Location).catch(() => undefined);
+    await historyFor({ lat: pt.lat, lon: pt.lon } as Location, gentle).catch(() => void failed++);
+    await pause();
     await pointSoil(pt.lat, pt.lon);
   }
+  return failed;
 }
 
 /**
@@ -88,7 +98,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
       const sow = sowingDays(crop, s.state, ens.years, cfg.yearStart, m.sowDoy);
       return new Map(ens.years.map((y) => [y.label, simulateOption(cfg, loc, soil, { ...m, sowDoy: sow.get(y.label)!.doy }, y.weather).yieldTHa] as [number, number]));
     };
-    const got = await loadEnsembles(cfg, preset);
+    const got = await loadEnsembles(cfg, preset, { rateLimitWaitMs: 8000 });
     if (got.base.source !== "real") {
       row.note = "real weather did not load";
       rows.push(row);
@@ -103,7 +113,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
       const sp = await pointSoil(pt.lat, pt.lon);
       if (!sp) soilMisses++;
       const loc: Location = registerLocation({ ...preset, key: `pt_${pt.lat}_${pt.lon}`, name: `${s.state} ${pt.name}`, lat: pt.lat, lon: pt.lon, soilParams: sp ?? undefined, pin: true });
-      const e = await loadEnsembles(cfg, loc);
+      const e = await loadEnsembles(cfg, loc, { rateLimitWaitMs: 8000 });
       if (e.base.source !== "real") continue;
       const soil = soilFor(loc);
       const irr = irrShare(crop, pt.irrCorn);
