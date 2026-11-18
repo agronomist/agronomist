@@ -74,7 +74,7 @@ async function getArchive(url: string, o: HttpOptions): Promise<unknown> {
   const loc = (globalThis as unknown as { location?: { protocol: string } }).location;
   if (!relayBroken && o.fetch === undefined && loc && /^https?:/.test(loc.protocol)) {
     try {
-      return await getJson(url.replace(/^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/, "/api/om"), { ...o, retries: 1 });
+      return await getJson(url.replace(/^https:\/\/archive-api\.open-meteo\.com\/v1\/archive/, "/api/om"), { ...o, retries: 1, rateLimitWaitMs: 0, onWait: undefined });
     } catch (e) {
       // a refused request (4xx, such as an unknown variable) says nothing about the relay itself
       if (!(e instanceof HttpError && e.status >= 400 && e.status < 500 && e.status !== 429)) relayBroken = true;

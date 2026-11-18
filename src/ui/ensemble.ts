@@ -2,6 +2,7 @@ import type { WeatherDay } from "../index";
 import { cacheGet, cachePut } from "./history-cache";
 import { preDays, fetchHistory, realDay, seasonDays, seasonLabel, seasonStartYear, sourceOf, type DaySource, type History, type SeasonSpec } from "../data/history";
 import type { HttpOptions } from "../data/http";
+import { fetchPowerHistory } from "../data/power";
 import type { CropConfig } from "./crops";
 import type { Location } from "./locations";
 import { syntheticYear, tagPre, type Ensemble, type EnsembleYear } from "./weather-years";
@@ -107,15 +108,26 @@ export interface LoadedEnsembles {
 }
 
 /** The weather record for a place, fetched once and kept. Failed fetches are not kept. */
+/** Where weather records come from. NASA POWER has no per-minute allowance, so it suits collecting a whole snapshot at once. */
+export type HistorySource = "openmeteo" | "power";
+let source: HistorySource = "openmeteo";
+export const historySource = () => source;
+export function setHistorySource(s: HistorySource) {
+  if (s === source) return;
+  source = s;
+  histories.clear(); // records of the other source are not mixed in
+}
+
 export function historyFor(loc: Location, o: HttpOptions = {}): Promise<History> {
   let p = histories.get(hkey(loc));
   if (!p) {
     p = (async () => {
-      const kept = await cacheGet(hkey(loc));
+      const ck = source === "power" ? `power:${hkey(loc)}` : hkey(loc);
+      const kept = await cacheGet(ck);
       if (kept) return kept;
       // when the service says "too many requests", wait and try again rather than give up on the first answer
-      const h = await fetchHistory(loc.lat, loc.lon, { rateLimitWaitMs: 3000, ...o });
-      void cachePut(hkey(loc), h);
+      const h = await (source === "power" ? fetchPowerHistory : fetchHistory)(loc.lat, loc.lon, { rateLimitWaitMs: 3000, ...o });
+      void cachePut(ck, h);
       return h;
     })();
     histories.set(hkey(loc), p);

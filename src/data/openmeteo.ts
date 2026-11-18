@@ -37,7 +37,7 @@ export function openMeteoUrl(lat: number, lon: number, start: string, end: strin
 const MAX_GAP = 3;
 
 /** Linear fill of null runs up to MAX_GAP days; longer runs (or edge gaps) throw. */
-function fillGaps(values: (number | null)[], name: string): number[] {
+export function fillGaps(values: (number | null)[], name: string): number[] {
   const out = values.slice() as (number | null)[];
   let i = 0;
   while (i < out.length) {
@@ -59,7 +59,7 @@ function fillGaps(values: (number | null)[], name: string): number[] {
   return out as number[];
 }
 
-const doyOf = (iso: string): number => {
+export const doyOf = (iso: string): number => {
   const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / 86400000);
 };

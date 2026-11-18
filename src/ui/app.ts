@@ -6,7 +6,7 @@ import { createPinMap, type PinMap } from "./map";
 import { CROPS, runSeason, type CropKey, type Management, type Run, type Settings } from "./model-run";
 import { drawScene, frameAt, sceneTag, type Frame } from "./scene";
 import { createScene3D, type Scene3D } from "./scene3d";
-import { loadEnsembles, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
+import { loadEnsembles, setHistorySource, syntheticEnsemble, type LoadedEnsembles } from "./ensemble";
 import { registerEnsemble, yearScenario, isYearScenario, type Ensemble } from "./weather-years";
 import { DEFAULT_PRICES, compare, evaluate, meanLosses, nResponse, optimize, stressYield, type Evaluation, type Losses, type NResponse, type Option, type Prices } from "./decision";
 import { LOSS_PARTS, OPTION_COLORS, drawExceedance, drawLosses, drawNResponse, drawYears, yearIndexAt } from "./results";
@@ -816,6 +816,7 @@ async function runValidationAll() {
 async function saveSnapshot() {
   const out = $("snapOut");
   try {
+    setHistorySource(($("snapSource") as HTMLSelectElement).value === "openmeteo" ? "openmeteo" : "power");
     const failed = await collectAll((m) => (out.textContent = `Fetching ${m}`));
     if (failed) {
       out.textContent = `${failed} weather record(s) did not load (Open-Meteo is limiting requests). Wait a minute and press the button again: it keeps what it already has and only fetches the rest.`;

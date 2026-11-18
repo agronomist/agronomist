@@ -370,7 +370,9 @@ details.val summary { cursor: pointer; font: 600 15px var(--display); letter-spa
     <div id="compOut" class="tblwrap" style="margin-top:10px"></div>
     <button id="runValAll" type="button" style="margin-top:18px">Check every state</button>
     <div id="valAllOut" class="tblwrap" style="margin-top:10px"></div>
-    <p class="sub" style="margin-top:14px"><b>Save the data.</b> Fetches the weather and soil for every state point once and saves them as one compressed file, so the whole check can be re-run and tuned offline. On Open-Meteo's free allowance (about 18 places a day) a full snapshot takes up to three days: leave the tab open, or press the button again later. It keeps every place it has already fetched, so each press only fetches the rest.</p>
+    <p class="sub" style="margin-top:14px"><b>Save the data.</b> Fetches the weather and soil for every state point once and saves them as one compressed file, so the whole check can be re-run and tuned offline. NASA POWER collects it in minutes. Open-Meteo's free allowance (about 18 places a day) takes up to three days: leave the tab open, or press the button again later. It keeps every place it has already fetched, so each press only fetches the rest.</p>
+    <label class="sub" for="snapSource">Weather source</label>
+    <select id="snapSource"><option value="power">NASA POWER (no request limit, coarser)</option><option value="openmeteo">Open-Meteo (finer, rate-limited)</option></select>
     <button id="runSnap" type="button">Save weather and soil snapshot</button>
     <div id="snapOut" class="sub" style="margin-top:10px"></div>
   </details>

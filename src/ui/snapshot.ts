@@ -1,6 +1,6 @@
 import { packHistory, unpackHistory, type PackedHistory } from "../data/history-pack";
 import type { SoilPointProfile } from "../data/soilgrids";
-import { fetchedHistories, seedHistory } from "./ensemble";
+import { fetchedHistories, historySource, seedHistory } from "./ensemble";
 import { fetchedSoilProfiles, seedSoilProfile } from "./state-check";
 
 /**
@@ -10,6 +10,8 @@ import { fetchedSoilProfiles, seedSoilProfile } from "./state-check";
 export interface Snapshot {
   version: 1;
   created: string;
+  /** Where the weather came from (absent in older files: Open-Meteo) */
+  source?: "openmeteo" | "power";
   weather: Record<string, PackedHistory>;
   soil: Record<string, SoilPointProfile>;
 }
@@ -22,7 +24,7 @@ export async function buildSnapshot(): Promise<Snapshot> {
   }
   const soil: Snapshot["soil"] = {};
   for (const [k, s] of fetchedSoilProfiles()) soil[k] = s;
-  return { version: 1, created: new Date().toISOString(), weather, soil };
+  return { version: 1, created: new Date().toISOString(), source: historySource(), weather, soil };
 }
 
 /** Load a snapshot into the caches. Returns how many weather records and soil profiles it held. */
