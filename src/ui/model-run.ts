@@ -42,6 +42,10 @@ export interface Management {
   habit: Habit;
   /** Corn after soybeans or soybeans after corn (default), or the same crop as last year. */
   prev?: "rotated" | "same";
+  /** Irrigated field (automatic scheduling). Used for state averages, not offered as a control. */
+  irrigated?: boolean;
+  /** Naturally poorly drained field without tile. Used for state averages, not offered as a control. */
+  poorDrainage?: boolean;
 }
 
 /** Counterfactual switches used to split yield losses; every one defaults to the real thing. */
@@ -71,6 +75,7 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
   }
   if (tw.noNLimit) sl = { ...sl, mineralizationRate: undefined };
   if (tw.noWaterLimit) sl = { ...sl, initialFraction: 1 };
+  if (m.poorDrainage) sl = { ...sl, drainFraction: 0.08 };
   let weather = season.slice(m.sowDoy - cfg.yearStart);
   if (tw.noWaterLimit) weather = weather.map((w) => ({ ...w, rain: Math.max(w.rain, 12) }));
   return simulate({
@@ -80,6 +85,7 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
     latitude: Math.abs(loc.lat),
     fertilizer: cfg.fertilizerFor(m.nRate, m.sowDoy),
     management: { seedingRate: m.seedingRate, sowingDepthCm: m.depthCm },
+    irrigation: m.irrigated ? { trigger: 0.5, amountMm: 25, maxSeasonMm: cfg.key === "maize" ? 300 : cfg.key === "soy" ? 220 : 150 } : undefined,
   });
 }
 

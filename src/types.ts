@@ -158,6 +158,26 @@ export interface SoilParams {
   mineralizationQ10?: number;
   /** Initial plant-available water as fraction of capacity (0-1), same in all layers */
   initialFraction: number;
+  /**
+   * Share of the water held above field capacity that drains out of a layer each day. 1 (default) is free drainage:
+   * everything above field capacity leaves at once. A poorly drained soil without tile has a small value (0.1 to 0.3),
+   * so wet spells leave the root zone saturated.
+   */
+  drainFraction?: number;
+  /** Pore space between field capacity and saturation, m3 m-3 (default 0.12). Only matters when `drainFraction` is below 1. */
+  extraPorosity?: number;
+}
+
+/** Automatic irrigation: when the root zone has dried below `trigger`, apply `amountMm` until `maxSeasonMm` is used. */
+export interface Irrigation {
+  /** Relative plant-available water in the root zone (0-1) below which to irrigate. Default 0.5 */
+  trigger?: number;
+  /** Depth per application, mm. Default 25 */
+  amountMm?: number;
+  /** Seasonal limit, mm. Default 300 */
+  maxSeasonMm?: number;
+  /** Stop irrigating once development passes this DVS (default 1.7, well into grain filling) */
+  stopDvs?: number;
 }
 
 /** Fertilizer application. day 0 = sowing day. Goes into the top layer. */
@@ -175,6 +195,7 @@ export interface DayOutput {
   lai: number;
   fi: number;
   ws: number; // water stress factor (1 = none)
+  aeration: number; // waterlogging stress factor (1 = none)
   tempFactor: number;
   grainSet: number; // 1 = no heat damage
   gross: number; // gross assimilation, g m-2 d-1
@@ -248,6 +269,8 @@ export interface SimulationResult {
   /** Cumulative water-balance terms, mm */
   balance: {
     rain: number;
+    /** Irrigation applied, mm (not included in `rain`) */
+    irrigation: number;
     transpiration: number;
     soilEvap: number;
     drainage: number;

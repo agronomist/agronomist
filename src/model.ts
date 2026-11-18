@@ -1,5 +1,6 @@
 import { defaultProcesses, clamp, interpolate, type ProcessSet } from "./processes";
 import type {
+  Irrigation,
   CropParams,
   DayOutput,
   Fertilizer,
@@ -32,6 +33,8 @@ export interface SimulationInput {
   processes?: Partial<ProcessSet>;
   /** Seeding rate and sowing depth. Used only when the crop defines `stand`; otherwise ignored. */
   management?: Management;
+  /** Automatic irrigation. Default none (rain-fed). */
+  irrigation?: Irrigation;
 }
 
 /**
@@ -120,7 +123,7 @@ export function simulate(input: SimulationInput): SimulationResult {
   let cumulativeGrowth = 0;
   let cumulativeGross = 0;
   let cumulativeResp = 0;
-  const bal = { rain: 0, transpiration: 0, soilEvap: 0, drainage: 0 };
+  const bal = { rain: 0, irrigation: 0, transpiration: 0, soilEvap: 0, drainage: 0 };
   const days: DayOutput[] = [];
 
   for (let i = 0; i < weather.length && !matured && !frostKilled; i++) {
@@ -154,14 +157,37 @@ export function simulate(input: SimulationInput): SimulationResult {
       nBal.mineralized += nMin;
     }
 
+    // ---- Irrigation: applied when the root zone has dried below the trigger ----
+    let irrigated = 0;
+    const irr = input.irrigation;
+    if (irr && emerged && dvs < (irr.stopDvs ?? 1.7) && bal.irrigation < (irr.maxSeasonMm ?? 300)) {
+      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      let have = 0;
+      let full = 0;
+      for (let l = 0; l < L.length; l++) {
+        const explored = clamp((rd - tops[l]!) / L[l]!.thickness, 0, 1);
+        have += Math.max(0, sw[l]! - wp[l]!) * explored;
+        full += (fc[l]! - wp[l]!) * explored;
+      }
+      if (full > 0 && have / full < (irr.trigger ?? 0.5)) irrigated = Math.min(irr.amountMm ?? 25, (irr.maxSeasonMm ?? 300) - bal.irrigation);
+      bal.irrigation += irrigated;
+    }
+
     // ---- Water: infiltration cascades down (mineral N moves with drainage) ----
-    let inflow = w.rain;
+    // Water above field capacity drains at `drainFraction` per day; what exceeds saturation passes straight through.
+    // With the default of 1 this is the plain tipping bucket: everything above field capacity leaves the layer at once.
+    let inflow = w.rain + irrigated;
     let inflowN = 0;
     bal.rain += w.rain;
+    const dF = clamp(soil.drainFraction ?? 1, 0, 1);
+    const poro = soil.extraPorosity ?? 0.12;
     for (let l = 0; l < L.length; l++) {
       sw[l]! += inflow;
       minN[l]! += inflowN;
-      const excess = Math.max(0, sw[l]! - fc[l]!);
+      const sat = fc[l]! + poro * L[l]!.thickness;
+      const over = Math.max(0, sw[l]! - sat);
+      const held = Math.max(0, Math.min(sw[l]!, sat) - fc[l]!);
+      const excess = dF >= 1 ? Math.max(0, sw[l]! - fc[l]!) : over + dF * held;
       const moved = sw[l]! > 0 ? minN[l]! * (excess / sw[l]!) : 0;
       sw[l]! -= excess;
       minN[l]! -= moved;
@@ -221,6 +247,20 @@ export function simulate(input: SimulationInput): SimulationResult {
         remaining -= taken;
       }
       ws = tPot > 1e-9 ? Math.min(1, transpiration / tPot) : 1;
+    }
+    // ---- Aeration: a root zone holding water above field capacity starves roots of oxygen ----
+    let aeration = 1;
+    if (emerged && dF < 1) {
+      const rd = p.rootDepthInitial + (p.rootDepthMax - p.rootDepthInitial) * clamp(dvs, 0, 1);
+      let wet = 0;
+      let room = 0;
+      for (let l = 0; l < L.length; l++) {
+        const explored = clamp((Math.min(rd, 400) - tops[l]!) / L[l]!.thickness, 0, 1);
+        wet += Math.max(0, sw[l]! - fc[l]!) * explored;
+        room += poro * L[l]!.thickness * explored;
+      }
+      const filled = room > 0 ? wet / room : 0;
+      aeration = 1 - 0.8 * clamp((filled - 0.5) / 0.5, 0, 1);
     }
     bal.transpiration += transpiration;
     bal.soilEvap += soilEvap;
@@ -293,7 +333,7 @@ export function simulate(input: SimulationInput): SimulationResult {
       }
 
       gross =
-        proc.dailyGrowth({ srad: w.srad, fi, tempFactor, ws, p }) * co2f.assimilation * nni;
+        proc.dailyGrowth({ srad: w.srad, fi, tempFactor, ws, p }) * co2f.assimilation * nni * aeration;
       resp = Math.min(
         gross,
         proc.maintenanceRespiration({ tmean, livingBiomass: leaf + stem + root, p }),
@@ -377,6 +417,7 @@ export function simulate(input: SimulationInput): SimulationResult {
       lai: leaf * p.sla,
       fi,
       ws,
+      aeration,
       tempFactor,
       grainSet,
       gross,
