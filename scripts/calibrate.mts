@@ -29,6 +29,7 @@ const dims: Dim[] = [
   { name: "canopyCoupling", lo: 0.1, hi: 0.6, base: 0.3, set: (v, _t, s) => void (s.canopyCoupling = v) },
   { name: "heatDamageRate", lo: 0.004, hi: 0.014, base: 0.0088, set: (v, _t, s) => void (s.heatDamageRate = v) },
   { name: "diffuseGain", lo: 0, hi: 0.6, base: 0.3, set: (v, _t, s) => void (s.diffuseGain = v) },
+  { name: "stemReserveFraction", lo: 0, hi: 0.25, base: 0, set: (v, _t, s) => void ((s.stemReserveFraction = v), (s.stemRemobRate = 3)) },
 ];
 const structural = crop === "maize"; // the crop-parameter dimensions above are maize's; other crops tune the first five only
 const active = structural ? dims : dims.slice(0, 5);

@@ -3,6 +3,7 @@ import { syntheticYear } from "./weather-years";
 import { locationByKey, soilFor } from "./locations";
 import { simulateOption, type Management } from "./model-run";
 import { maizeDefaults } from "../index";
+import { colimitation } from "../colimitation";
 
 /**
  * Checks of the model's parts, not of its final yield: does the machinery that makes yield match values measured or simulated elsewhere?
@@ -36,17 +37,56 @@ function runs(place: string, irrigated: boolean, n = 30) {
       if (d.dvs < 1) { vegGrow += d.growth; vegIpar += ip; }
     });
     const last = r.days[r.days.length - 1]!;
-    return { yield155: r.yieldTHa / MOISTURE, supply: r.balance.rain + r.balance.irrigation, et: r.balance.transpiration + r.balance.soilEvap, vegRue: vegGrow / vegIpar, aboveground: last.totalBiomass - last.root, ipar };
+    return { kernels: r.criticalPeriod.kernelsPerM2, yieldDry: r.yieldTHa, yield155: r.yieldTHa / MOISTURE, supply: r.balance.rain + r.balance.irrigation, et: r.balance.transpiration + r.balance.soilEvap, vegRue: vegGrow / vegIpar, aboveground: last.totalBiomass - last.root, ipar };
   });
 }
 const mean = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
+const cv = (a: number[]) => Math.sqrt(mean(a.map((x) => (x - mean(a)) ** 2))) / mean(a);
+
+const r2 = (x: number[], y: number[]) => {
+  const mx = mean(x), my = mean(y);
+  const c = x.reduce((s, v, i) => s + (v - mx) * (y[i]! - my), 0);
+  return (c * c) / (x.reduce((s, v) => s + (v - mx) ** 2, 0) * y.reduce((s, v) => s + (v - my) ** 2, 0));
+};
+/** Yield against water–nitrogen colimitation across seasons and nitrogen rates. */
+function colimitationFit(place: string) {
+  const cfg = CROPS.maize;
+  const loc = locationByKey(place);
+  const soil = soilFor(loc);
+  const y: number[] = [], cm: number[] = [];
+  for (let k = 1; k <= 30; k++)
+    for (const nRate of [0, 60, 120, 180, 240]) {
+      const r = simulateOption(cfg, loc, soil, { ...MAIZE, nRate }, syntheticYear(cfg, "typical", k, loc));
+      y.push(r.yieldTHa);
+      cm.push(colimitation(r.days).cm);
+    }
+  return r2(y, cm);
+}
 
 export function componentCheck(): ComponentRow[] {
+  const co = colimitationFit("iowa");
   const irrNE = runs("nebraska", true);
   const irrIA = runs("iowa", true);
   const wp = mean(irrIA.map((r) => r.yield155 * 1000)) / (mean(irrIA.map((r) => r.supply)) - 100);
   const wpEt = mean(irrIA.map((r) => r.yield155 * 1000)) / (mean(irrIA.map((r) => r.et)) - 100);
+  // yield components in ordinary rainfed seasons: grains per m² should swing much more than grain weight
+  const rainfed = runs("iowa", false).filter((r) => r.kernels > 0 && r.yieldDry > 1);
+  const kw = rainfed.map((r) => (r.yieldDry * 100) / r.kernels);
   return [
+    {
+      name: "Yield components: swing in kernel number against kernel weight (rainfed, central Iowa)",
+      model: cv(rainfed.map((r) => r.kernels)) / cv(kw),
+      low: 1, high: 100, unit: "ratio of the two coefficients of variation",
+      source: "Grains per m² are far more plastic than grain size, so the ratio should be above 1 (Sadras and Slafer 2012, Field Crops Research 127: 215 to 224)",
+      note: "A ratio below 1 means grain filling, not kernel set, carries the year-to-year swing in yield. Generated weather, so read the direction, not the number",
+    },
+    {
+      name: "Yield explained by water–nitrogen colimitation (central Iowa, 30 seasons × 5 nitrogen rates)",
+      model: co,
+      low: 0.45, high: 0.99, unit: "r²",
+      source: "Colimitation explained 45 to 99% of yield gap and water-use efficiency variation in canola, 53 to 63% of wheat yield, up to 81% of maize water-use efficiency (Sadras 2005; Cossani and Sadras 2018, Advances in Agronomy 150: 231 to 263)",
+      note: "Computed from the model's own daily water and nitrogen stress scalars. Generated weather, and the published studies are wheat, canola and Pampas maize, so a broad match only",
+    },
     {
       name: "Irrigated maize yield, central Nebraska",
       model: mean(irrNE.map((r) => r.yield155)),

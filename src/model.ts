@@ -121,6 +121,8 @@ export function simulate(input: SimulationInput): SimulationResult {
   let windowClosed = false;
   let kernels = 0;
   let sinkCap = Infinity;
+  let stemPeak = 0;
+  let remobilized = 0;
   let matured = false;
   let cumulativeGrowth = 0;
   let cumulativeGross = 0;
@@ -400,6 +402,19 @@ export function simulate(input: SimulationInput): SimulationResult {
       const toStorage = windowClosed ? Math.min(wantStorage, Math.max(0, sinkCap - storage)) : wantStorage;
       stem += shootGrowth * interpolate(p.stemFraction, dvs) + (wantStorage - toStorage) + (leafWant - toLeaf);
       storage += toStorage;
+      // when grain filling falls short of what the kernels can take, labile stem reserves make up part of the gap
+      if (windowClosed && p.stemReserveFraction && sinkCap !== Infinity) {
+        stemPeak = Math.max(stemPeak, stem);
+        const gap = sinkCap - storage;
+        const avail = p.stemReserveFraction * stemPeak - remobilized;
+        const m = Math.min(gap, avail, p.stemRemobRate ?? 3, stem);
+        if (m > 0) {
+          stem -= m;
+          storage += m;
+          remobilized += m;
+        }
+      }
+      if (!windowClosed) stemPeak = Math.max(stemPeak, stem);
 
       if (dvs >= 1) {
         const loss = leaf * p.leafSenescenceRate * dtt;
@@ -431,6 +446,16 @@ export function simulate(input: SimulationInput): SimulationResult {
           deadLeaf += lost; // residue, so the biomass balance stays exact
         }
         sinkCap = storage + kernels * p.potentialKernelWeight;
+        // a kernel cannot grow without limit: when few kernels were set, the assimilate already stored for them is more
+        // than they can hold, and the surplus goes back to stem (mass is conserved)
+        if (p.kernelWeightMaxRatio !== undefined) {
+          const hold = kernels * p.potentialKernelWeight * p.kernelWeightMaxRatio;
+          if (storage > hold) {
+            stem += storage - hold;
+            storage = hold;
+          }
+          sinkCap = Math.min(sinkCap, hold);
+        }
       }
     }
 

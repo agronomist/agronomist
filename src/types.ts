@@ -80,6 +80,12 @@ export interface CropParams {
   /** If set, kernel number follows a saturating curve of growth rate above the threshold (initial slope kernelSlope, ceiling this value) instead of a straight line cut off at kernelMax. Andrade et al. 1999 found the plant-level relationship curvilinear. */
   kernelAsymptote?: number;
   potentialKernelWeight: number; // g DM per kernel; grain sink = kernels * this
+  /** Largest kernel weight as a multiple of the potential weight (kernel weight is the least plastic yield component). Unset = no limit. */
+  kernelWeightMaxRatio?: number;
+  /** Share of peak stem mass that can be moved to the grain when current assimilate falls short. Unset or 0 = no remobilization. */
+  stemReserveFraction?: number;
+  /** Fastest remobilization, g m-2 d-1. */
+  stemRemobRate?: number;
 
   // --- Frost ---
   frostKillTemp: number; // daily Tmin (°C) at or below which the crop is killed

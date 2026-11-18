@@ -25,6 +25,9 @@ const variants: Record<string, Record<string, unknown> | null> = {
   "vpd efficiency on": { vpdSensitivity: 0.5 },
   "diffuse light off": { diffuseGain: 0 },
   "diffuse light x2": { diffuseGain: 0.6 },
+  "kernel weight capped at 1.4x": { kernelWeightMaxRatio: 1.4 },
+  "stem reserves 15% remobilized": { stemReserveFraction: 0.15, stemRemobRate: 3 },
+  "stem reserves 25% remobilized": { stemReserveFraction: 0.25, stemRemobRate: 3 },
 };
 
 const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
