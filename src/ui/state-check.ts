@@ -82,10 +82,10 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
  * For each state: the one-point preset run (what the page did before), the weighted points run, and the full run with the
  * irrigated and poorly drained shares added. Every run is the crop's default plan on every real weather year.
  */
-export async function runStateCheck(crop: CropKey, plan: Management, prices: Prices, onProgress: (msg: string) => void): Promise<StateRow[]> {
+export async function runStateCheck(crop: CropKey, plan: Management, prices: Prices, onProgress: (msg: string) => void, opts: { timedOnly?: boolean; states?: string[] } = {}): Promise<StateRow[]> {
   const cfg = CROPS[crop];
   const rows: StateRow[] = [];
-  const list = seriesFor(crop);
+  const list = seriesFor(crop).filter((s) => !opts.states || opts.states.includes(s.state));
   for (const [i, s] of list.entries()) {
     onProgress(`${s.state} (${i + 1} of ${list.length})…`);
     const prof = STATE_PROFILES.find((p) => p.state === s.state)!;
@@ -104,7 +104,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
       rows.push(row);
       continue;
     }
-    row.preset = validate(crop, run(preset, soilFor(preset), got.base, plan), s.years);
+    if (!opts.timedOnly) row.preset = validate(crop, run(preset, soilFor(preset), got.base, plan), s.years);
 
     const runs: PointRuns[] = [];
     const timedRuns: PointRuns[] = [];
@@ -117,7 +117,7 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
       if (e.base.source !== "real") continue;
       const soil = soilFor(loc);
       const irr = irrShare(crop, pt.irrCorn);
-      runs.push({
+      if (!opts.timedOnly) runs.push({
         w: pt.w,
         irr,
         free: run(loc, soil, e.base, plan),
@@ -134,9 +134,10 @@ export async function runStateCheck(crop: CropKey, plan: Management, prices: Pri
         irrigated: irr > 0 ? runTimed(loc, soil, e.base, { ...plan, irrigated: true }) : undefined,
       });
     }
-    if (runs.length < prof.points.length) row.note = `${prof.points.length - runs.length} point(s) had no real weather`;
+    if (!opts.timedOnly && runs.length < prof.points.length) row.note = `${prof.points.length - runs.length} point(s) had no real weather`;
     if (soilMisses) row.note += `${row.note ? "; " : ""}soil data missing at ${soilMisses} point(s), preset soil used`;
-    if (runs.length) {
+    if (opts.timedOnly) row.timed = validate(crop, stateYields(timedRuns, prof, "full"), s.years);
+    else if (runs.length) {
       row.points = validate(crop, stateYields(runs, prof, "points"), s.years);
       row.full = validate(crop, stateYields(runs, prof, "full"), s.years);
       row.timed = validate(crop, stateYields(timedRuns, prof, "full"), s.years);

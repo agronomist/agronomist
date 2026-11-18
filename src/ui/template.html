@@ -243,9 +243,11 @@ details.val summary { cursor: pointer; font: 600 15px var(--display); letter-spa
     <div class="optrow">
       <select id="objective" aria-label="What to optimise"><option value="mean">Best average return</option><option value="cautious">Protect the bad years</option></select>
       <button id="optimize" type="button" class="primary">Suggest a better plan</button>
+      <button id="tradeoff" type="button">Show trade-offs</button>
       <span class="tip" id="optMsg" role="status"></span>
       <label class="chk" id="inSeasonWrap" hidden><input type="checkbox" id="inSeason"><span id="inSeasonText">Use this season's weather so far</span></label>
     </div>
+    <div id="tradeOut" class="tblwrap" style="margin-top:10px"></div>
   </section>
 
   <section class="labonly card" id="results" aria-label="Results across weather years">

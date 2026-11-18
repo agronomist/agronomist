@@ -1,3 +1,4 @@
+import { tuning } from "./tuning";
 import type { WeatherDay } from "../index";
 import type { CropKey } from "./crops";
 
@@ -59,7 +60,7 @@ export function sowingDays(
     if (seen !== undefined) { out.set(s.label, { doy: seen, source: "observed" }); continue; }
     const sp = ok.find((x) => x.label === s.label)?.sp;
     if (!sp || Number.isNaN(rain0)) { out.set(s.label, { doy: baseDoy, source: "fixed" }); continue; }
-    const delay = DELAY_PER_MM * (sp.rain - rain0) + DELAY_PER_DEGC * (temp0 - sp.tmean);
+    const delay = tuning.delayPerMm * (sp.rain - rain0) + tuning.delayPerDegC * (temp0 - sp.tmean);
     out.set(s.label, { doy: Math.round(baseDoy + Math.max(-MAX_ADVANCE, Math.min(MAX_DELAY, delay))), source: "rule" });
   }
   return out;

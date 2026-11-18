@@ -1,3 +1,4 @@
+import { tuning } from "./tuning";
 import { IRR_FACTOR, type StateProfile } from "./states";
 import type { CropKey } from "./crops";
 
@@ -12,7 +13,7 @@ export interface PointRuns {
   irrigated?: Map<number, number>;
 }
 
-export const irrShare = (crop: CropKey, irrCorn: number) => Math.min(1, irrCorn * IRR_FACTOR[crop]);
+export const irrShare = (crop: CropKey, irrCorn: number) => Math.min(1, irrCorn * IRR_FACTOR[crop] * tuning.irrScale);
 
 /**
  * State-average yield per year. "points" is the weighted average of rain-fed, freely drained fields. "full" also mixes in the
@@ -28,7 +29,9 @@ export function stateYields(runs: PointRuns[], p: Pick<StateProfile, "untiledWet
       const free = r.free.get(y)!;
       const poorV = mode === "full" && r.poor?.has(y) ? r.poor.get(y)! : free;
       const wtV = mode === "full" && r.wt?.has(y) ? r.wt.get(y)! : free;
-      const rainfed = mode === "full" ? (1 - p.untiledWet - p.shallowWT) * free + p.untiledWet * poorV + p.shallowWT * wtV : free;
+      const wet = Math.min(0.9, p.untiledWet * tuning.wetScale);
+      const wt = Math.min(0.9 - wet, p.shallowWT * tuning.wtScale);
+      const rainfed = mode === "full" ? (1 - wet - wt) * free + wet * poorV + wt * wtV : free;
       const here = mode === "full" && r.irrigated?.has(y) ? (1 - r.irr) * rainfed + r.irr * r.irrigated.get(y)! : rainfed;
       v += (r.w / wsum) * here;
     }

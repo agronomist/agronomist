@@ -14,6 +14,7 @@ import { NASS, validate, type ValidationResult } from "./validation";
 import { componentCheck, rowOk } from "./component-check";
 import { collectAll, runStateCheck, type StateRow } from "./state-check";
 import { buildSnapshot } from "./snapshot";
+import { tradeoffs } from "./tradeoff";
 import { inject } from "@vercel/analytics";
 import { createEasy, type Easy } from "./easy";
 
@@ -671,6 +672,40 @@ async function runOptimize() {
   }
 }
 
+async function runTradeoffs() {
+  const btn = $("tradeoff") as HTMLButtonElement;
+  const msg = $("optMsg");
+  const out = $("tradeOut");
+  btn.disabled = true;
+  const cfg = CROPS[crop];
+  const loc = locationByKey(locKey);
+  try {
+    const rows = await tradeoffs(cfg, loc, soilFor(loc), options[active]!, activeEns(), prices, { onProgress: (d, n) => (msg.textContent = `Comparing plans… ${Math.min(99, Math.round((100 * d) / n))}%`) });
+    msg.textContent = "";
+    out.innerHTML =
+      `<table class="cmp"><thead><tr><th>Sow</th><th>Maturity</th><th>Nitrogen</th><th>Average return, $/ha</th><th>Bad-year return, $/ha</th><th>Average yield</th><th></th></tr></thead><tbody>` +
+      rows
+        .map((c, i) => `<tr><td>${dateLabel(c.plan.sowDoy)}</td><td>${c.plan.rm}</td><td>${c.plan.nRate}</td><td>${money(c.meanNet)}</td><td>${money(c.worstNet)}</td><td>${c.meanYield.toFixed(1)} t/ha</td><td><button type="button" data-use="${i}">Use</button></td></tr>`)
+        .join("") +
+      `</tbody></table><p class="note2">These plans are the efficient ones: none is beaten by another on average return, return in the worst fifth of years and nitrogen all at once. Moving down the table usually gives up average return for steadier years or less nitrogen. Returns count only nitrogen and seed cost, on a sample of the years.</p>`;
+    out.querySelectorAll<HTMLButtonElement>("button[data-use]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const c = rows[Number(b.dataset.use)]!;
+        const plan = newOption({ ...options[active]!, sowDoy: c.plan.sowDoy, rm: c.plan.rm, nRate: c.plan.nRate });
+        if (options.length < 3) {
+          options = [...options, plan];
+          active = options.length - 1;
+        } else options = options.map((o, i) => (i === active ? plan : o));
+        renderChips();
+        syncOutputs();
+        scheduleRefresh();
+      }),
+    );
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function runValidation() {
   const out = $("valOut");
   const ref = NASS[crop];
@@ -859,6 +894,7 @@ function init() {
     scheduleRefresh();
   });
   $("optimize").addEventListener("click", () => void runOptimize());
+  $("tradeoff").addEventListener("click", () => void runTradeoffs());
   $("view").addEventListener("input", () => {
     view3d = ($("view") as HTMLSelectElement).value === "3d";
     size3d = "";
