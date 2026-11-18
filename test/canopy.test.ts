@@ -19,3 +19,20 @@ describe("canopy temperature", () => {
     expect(relativeCanopyHeat(34, 20, 0.2, 0.3)).toBeCloseTo(0.3 * relativeCanopyHeat(34, 20, 0.2, 1), 10);
   });
 });
+
+import { waterLimitedGrowthFactor } from "../src/canopy";
+describe("water-limited growth and VPD", () => {
+  it("leaves a crop with enough water alone, and is off at zero sensitivity", () => {
+    expect(waterLimitedGrowthFactor(1, 38, 20, 1)).toBe(1);
+    expect(waterLimitedGrowthFactor(0.6, 38, 20, 0)).toBe(0.6);
+  });
+  it("gives less growth for the same shortage when the air is drier", () => {
+    const humid = waterLimitedGrowthFactor(0.6, 30, 24, 0.5);
+    const dry = waterLimitedGrowthFactor(0.6, 36, 14, 0.5);
+    expect(dry).toBeLessThan(humid);
+    expect(dry).toBeLessThan(0.6);
+  });
+  it("uses a given dew point in place of the minimum temperature", () => {
+    expect(waterLimitedGrowthFactor(0.6, 34, 22, 0.5, 8)).toBeLessThan(waterLimitedGrowthFactor(0.6, 34, 22, 0.5, 21));
+  });
+});

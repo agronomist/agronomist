@@ -16,9 +16,9 @@ export const REFERENCE_CWSI = 0.2; // the stress level the heat threshold was se
 
 const es = (t: number) => 0.6108 * Math.exp((17.27 * t) / (t + 237.3));
 
-/** Afternoon vapour pressure deficit, kPa, from daily extremes (the minimum stands in for the dew point). */
-export function vpdKpa(tmax: number, tmin: number): number {
-  return Math.max(0, es(tmax) - es(Math.min(tmin, tmax)));
+/** Afternoon vapour pressure deficit, kPa, from the daily maximum and the dew point (the daily minimum stands in for it if none is given). */
+export function vpdKpa(tmax: number, tmin: number, dewpoint?: number): number {
+  return Math.max(0, es(tmax) - es(Math.min(dewpoint ?? tmin, tmax)));
 }
 
 /** Canopy minus air temperature, °C. */
@@ -31,4 +31,19 @@ export function canopyOffset(vpd: number, cwsi: number): number {
 export function relativeCanopyHeat(tmax: number, tmin: number, ws: number, coupling: number): number {
   const v = vpdKpa(tmax, tmin);
   return coupling * (canopyOffset(v, 1 - ws) - canopyOffset(v, REFERENCE_CWSI));
+}
+
+/** Afternoon VPD (kPa) at which the supply-limited growth response is neutral. Set to the median afternoon VPD of canopy days in the generated Iowa weather, so the effect shifts yield between years more than it moves the average. */
+export const REFERENCE_VPD = 1.6;
+
+/**
+ * Water-stress factor on growth when the crop cannot meet demand. Transpiration efficiency falls as 1/VPD (Tanner and Sinclair 1983), so
+ * the same water buys less dry matter on a dry-air day. The effect only matters when water is short: it fades to nothing as `ws` reaches 1.
+ * `sensitivity` is the exponent on the VPD ratio: 1 would be the full 1/VPD, and less is used because the reference ET that sets demand already
+ * rises with VPD in the real weather data. 0 turns the effect off.
+ */
+export function waterLimitedGrowthFactor(ws: number, tmax: number, tmin: number, sensitivity: number, dewpoint?: number): number {
+  if (sensitivity <= 0 || ws >= 1) return ws;
+  const r = Math.max(0.5, Math.min(1.5, REFERENCE_VPD / Math.max(0.3, vpdKpa(tmax, tmin, dewpoint))));
+  return Math.max(0, Math.min(1, ws * r ** (sensitivity * (1 - ws))));
 }

@@ -212,6 +212,8 @@ async function openMap() {
 
 function setMode(m: "easy" | "lab") {
   document.body.classList.toggle("easy", m === "easy");
+  $("dockEasy").setAttribute("aria-pressed", String(m === "easy"));
+  $("dockLab").setAttribute("aria-pressed", String(m === "lab"));
   $("lede").textContent = m === "easy"
     ? "Pick a place and a crop, set the plan you would normally follow, and see how it does in every real weather year since 1991, next to a better one."
     : "Compare crop plans on every weather year since 1991, not on one guess. See the typical result, the bad years, the money, and where the yield goes, then play any single season to see why.";
@@ -767,6 +769,8 @@ function init() {
   theme = readTheme();
   easy = createEasy($("easy"), { env: () => ({ crop, locKey, ens: activeEns(), prices, ensId: ensId() }), openLab });
   $("backEasy").addEventListener("click", () => setMode("easy"));
+  $("dockEasy").addEventListener("click", () => setMode("easy"));
+  $("dockLab").addEventListener("click", () => setMode("lab"));
   setupCrop(crop);
   setMode("easy");
   (window as unknown as { __ready?: boolean }).__ready = true;

@@ -85,6 +85,16 @@ button:hover { filter: brightness(1.06); }
 .easyControls .field { display: grid; gap: 4px; }
 .easyControls output { font: 600 13px var(--mono); }
 .headline { font-size: 17px; line-height: 1.4; margin: 6px 0 12px; }
+/* the headline sits in a dark pill that pops in whenever the answer changes (an idea borrowed from cult-ui's dynamic island, in plain CSS) */
+.headline.island { background: var(--ink); color: var(--paper); border-radius: 22px; padding: 12px 18px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); animation: islandIn .35s cubic-bezier(.2,.9,.3,1.2); transform-origin: 50% 0; }
+.headline.island b { color: inherit; }
+@keyframes islandIn { from { opacity: 0; transform: scale(.94) translateY(-4px); } to { opacity: 1; transform: none; } }
+/* bottom dock that switches between the simple view and the full lab (after cult-ui's dock) */
+.dock { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 50; display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: color-mix(in srgb, var(--card) 82%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+.dock button { border: 0; background: transparent; color: var(--muted); font: 600 14px var(--body); padding: 9px 18px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s, transform .2s; min-height: 40px; }
+.dock button:hover { transform: translateY(-2px); color: var(--ink); }
+.dock button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+body { padding-bottom: 76px; }
 .eplans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .eplan { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .eplan.mine { border-top: 3px solid var(--water); }
@@ -187,7 +197,7 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
 
 @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .charts { grid-template-columns: 1fr; } .transport { grid-template-columns: auto auto 1fr; } .transport #speed, .transport #view { grid-column: auto; } }
-@media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } .headline.island { animation: none; } .dock button { transition: none; } .dock button:hover { transform: none; } }
 </style>
 </head>
 <body>
@@ -363,5 +373,6 @@ details.val summary { cursor: pointer; font: 600 12px var(--mono); letter-spacin
   <p class="notes">What this is: a simplified, transparent crop model (thermal-time phenology, radiation-use growth, a layered water balance, a nitrogen pool, critical-window grain set, stand and depth effects), not DSSAT or APSIM. Weather is real daily data from Open-Meteo for every year since 1991 at the chosen point, run for each plan, so the spread you see is real weather spread. Soil comes from SoilGrids for pins and generic textures for presets, with a deep layer added below the mapped metre. Maize is calibrated to central Iowa: average yield, the size of the water gap, the nitrogen optimum, and the best seeding rate and sowing window. Wheat is calibrated more loosely than maize: yields in dry regions such as Kansas are still on the high side of the published state averages, and the check above shows how far off. The model has no pests, disease, lodging, compaction, or waterlogging, no previous-crop nitrogen credit, and yields do not include the technology trend, so read differences between plans more than absolute levels. Southern pins run on a mirrored calendar. The season-to-date option splices the real weather so far with the rest of the season from each past year. Open-Meteo's archive trails real time by about a week.</p>
 </div>
 <script>/*APP*/</script>
+<nav class="dock" aria-label="View"><button type="button" id="dockEasy" aria-pressed="true">Simple</button><button type="button" id="dockLab" aria-pressed="false">Full lab</button></nav>
 </body>
 </html>

@@ -182,7 +182,7 @@ export function createEasy(root: HTMLElement, hooks: EasyHooks): Easy {
     const chart = b && !close ? dots(c, ys(a), ys(b)) : "";
     const changes = rec && !close ? changeText(c, a.option, rec) : "";
     return `
-      <p class="headline">${head}</p>
+      <p class="headline island">${head}</p>
       <div class="eplans${close ? " one" : ""}">${col(a, "Your plan", "mine", a.option)}${b && !close ? col(b, "A better plan", "better", b.option) : close ? "" : `<div class="eplan better wait"><h3>A better plan</h3><p class="eplanText">searching…</p></div>`}</div>
       ${changes}
       ${chart}

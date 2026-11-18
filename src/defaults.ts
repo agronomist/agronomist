@@ -30,6 +30,7 @@ export const maizeDefaults: CropParams = {
   co2TranspirationSensitivity: -0.05, // placeholder
 
   heatThreshold: 30,
+  vpdSensitivity: 0, // off: with only tmax and tmin the VPD it sees barely varies; turns on once real dew point is fetched (see canopy.ts)
   canopyCoupling: 0.3, // PLACEHOLDER, tuned so the drought amplification of heat damage is near 1.7
   heatDamageRate: 0.0088,
   heatStorageLoss: 0.7,

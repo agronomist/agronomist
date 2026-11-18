@@ -10,6 +10,8 @@ export interface WeatherDay {
   srad: number;
   /** Rainfall + irrigation, mm d-1 */
   rain: number;
+  /** Mean dew point, °C (optional; the daily minimum temperature stands in for it if omitted) */
+  dewpoint?: number;
   /** Reference evapotranspiration, mm d-1 (optional; estimated if omitted) */
   et0?: number;
 }
@@ -61,6 +63,8 @@ export interface CropParams {
   heatThreshold: number; // daily Tmax (°C) above which damage accrues
   /** If set, heat damage follows canopy temperature (see canopy.ts), with the canopy-minus-air offset scaled by this. Unset keeps air temperature with a drought amplifier. */
   canopyCoupling?: number;
+  /** If set, supply-limited growth also falls with vapour pressure deficit (transpiration efficiency is about 1/VPD). Exponent on the VPD ratio; 0 or unset is off. */
+  vpdSensitivity?: number;
   heatDamageRate: number; // fraction of kernel set lost per °C above threshold per day, inside the critical window
   /** Fraction of the grain stored before the kernel count is set that is lost in proportion to heat damage (aborted kernels). Default 0. */
   heatStorageLoss?: number;
