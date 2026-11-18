@@ -16,6 +16,8 @@ export interface HttpOptions {
   timeoutMs?: number;
   /** After a 429 (rate limit), wait this long, doubling each time up to 60 s, instead of the short default. Default 0 (off). */
   rateLimitWaitMs?: number;
+  /** Called with the wait (ms) before each retry after a 429, so a screen can say it is waiting rather than look stuck. */
+  onWait?: (ms: number) => void;
 }
 
 export class HttpError extends Error {
@@ -57,7 +59,11 @@ export async function getJson(url: string, o: HttpOptions = {}): Promise<unknown
       lastErr = e;
     }
     const limited = lastErr instanceof HttpError && lastErr.status === 429 && wait > 0;
-    if (attempt < retries) await sleep(limited ? Math.min(60000, wait * 2 ** attempt) : 500 * 2 ** attempt);
+    if (attempt < retries) {
+      const ms = limited ? Math.min(60000, wait * 2 ** attempt) : 500 * 2 ** attempt;
+      if (limited) o.onWait?.(ms);
+      await sleep(ms);
+    }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }

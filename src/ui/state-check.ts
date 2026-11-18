@@ -58,11 +58,13 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
   const total = locs.length + pts.length;
   let n = 0;
   let failed = 0;
-  const gentle = { rateLimitWaitMs: 8000 };
+  let label = "";
+  // Open-Meteo's free allowance is about 18 places a day: say so while waiting instead of looking stuck
+  const gentle = { rateLimitWaitMs: 8000, onWait: (ms: number) => onProgress(`${label} (Open-Meteo is limiting requests; waiting ${Math.round(ms / 1000)} s, then continuing. Places already fetched are kept.)`) };
   const pause = () => new Promise<void>((r) => setTimeout(r, 1500));
   const seen = new Set<string>();
   for (const l of locs) {
-    onProgress(`weather for ${l.name} (${++n} of ${total})…`);
+    onProgress((label = `weather for ${l.name} (${++n} of ${total})…`));
     if (!seen.has(`${l.lat},${l.lon}`)) {
       seen.add(`${l.lat},${l.lon}`);
       await historyFor(l, gentle).catch(() => void failed++);
@@ -70,7 +72,7 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
     }
   }
   for (const pt of pts) {
-    onProgress(`weather and soil for ${pt.tag} (${++n} of ${total})…`);
+    onProgress((label = `weather and soil for ${pt.tag} (${++n} of ${total})…`));
     await historyFor({ lat: pt.lat, lon: pt.lon } as Location, gentle).catch(() => void failed++);
     await pause();
     await pointSoil(pt.lat, pt.lon);
