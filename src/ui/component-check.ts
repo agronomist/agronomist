@@ -36,7 +36,7 @@ function runs(place: string, irrigated: boolean, n = 30) {
       if (d.dvs < 1) { vegGrow += d.growth; vegIpar += ip; }
     });
     const last = r.days[r.days.length - 1]!;
-    return { yield155: r.yieldTHa / MOISTURE, supply: r.balance.rain + r.balance.irrigation, vegRue: vegGrow / vegIpar, aboveground: last.totalBiomass - last.root, ipar };
+    return { yield155: r.yieldTHa / MOISTURE, supply: r.balance.rain + r.balance.irrigation, et: r.balance.transpiration + r.balance.soilEvap, vegRue: vegGrow / vegIpar, aboveground: last.totalBiomass - last.root, ipar };
   });
 }
 const mean = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
@@ -45,6 +45,7 @@ export function componentCheck(): ComponentRow[] {
   const irrNE = runs("nebraska", true);
   const irrIA = runs("iowa", true);
   const wp = mean(irrIA.map((r) => r.yield155 * 1000)) / (mean(irrIA.map((r) => r.supply)) - 100);
+  const wpEt = mean(irrIA.map((r) => r.yield155 * 1000)) / (mean(irrIA.map((r) => r.et)) - 100);
   return [
     {
       name: "Irrigated maize yield, central Nebraska",
@@ -66,11 +67,18 @@ export function componentCheck(): ComponentRow[] {
       note: "the 85% is an assumption",
     },
     {
-      name: "Water productivity of irrigated maize",
+      name: "Water productivity of irrigated maize, per mm of rain and irrigation",
       model: wp,
       low: 19.3, high: 27.7, unit: "kg grain per ha per mm of supply above 100 mm",
       source: "Mean 19.3 and upper boundary 27.7 for irrigated maize in Nebraska (Grassini and Cassman, 2010)",
-      note: "the model reaches or passes the boundary, so it uses water too efficiently, or seasonal supply is counted differently",
+      note: "above the boundary when only rain and irrigation count, which ignores the soil water the crop starts with",
+    },
+    {
+      name: "Water productivity of irrigated maize, per mm of water used (evaporation plus transpiration)",
+      model: wpEt,
+      low: 19.3, high: 27.7, unit: "kg grain per ha per mm above 100 mm",
+      source: "Same benchmark (Grassini and Cassman, 2010)",
+      note: "which of the two the benchmark's 'water supply' matches is not settled here, so both are shown",
     },
     {
       name: "Kernel-set threshold",

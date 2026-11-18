@@ -17,9 +17,11 @@ describe("component check", () => {
     expect(rowOk(by("Radiation use efficiency"))).toBe(true);
     expect(rowOk(by("Kernel-set threshold"))).toBe(true);
   });
-  it("shows that water productivity is above the Nebraska boundary rather than hiding it", () => {
-    const wp = by("Water productivity");
-    expect(wp.model).toBeGreaterThan(wp.high);
-    expect(wp.note).toMatch(/boundary/);
+  it("shows both readings of water productivity: above the Nebraska boundary per mm of rain and irrigation, inside it per mm used", () => {
+    const supply = by("Water productivity of irrigated maize, per mm of rain");
+    const used = by("Water productivity of irrigated maize, per mm of water used");
+    expect(supply.model).toBeGreaterThan(supply.high);
+    expect(rowOk(used)).toBe(true);
+    expect(supply.note).toMatch(/boundary/);
   });
 });
