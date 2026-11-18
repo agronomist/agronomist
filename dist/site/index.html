@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crop Season Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: scene and live readouts side by side, four synced charts below sharing one time cursor. */
+:root {
+  --paper: #edf1ea; --card: #f9fbf6; --ink: #1b2a20; --muted: #5d6b60; --line: #d8e0d4;
+  --leaf: #3d8a37; --gold: #c9930f; --water: #2f78b3; --heat: #cf4f2a; --soil: #7b5a3e;
+  --accent: #235a2f; --on-accent: #ffffff;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1712; --card: #16211a; --ink: #e7efe6; --muted: #96a899; --line: #26352b;
+    --leaf: #6bbd62; --gold: #e3b02b; --water: #5aa9e0; --heat: #ee7a52; --soil: #a8845f;
+    --accent: #6bbd62; --on-accent: #0d1a10; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1712; --card: #16211a; --ink: #e7efe6; --muted: #96a899; --line: #26352b;
+  --leaf: #6bbd62; --gold: #e3b02b; --water: #5aa9e0; --heat: #ee7a52; --soil: #a8845f;
+  --accent: #6bbd62; --on-accent: #0d1a10; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.45 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 44px; display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { margin: 0; font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 2px 0 4px; font: 700 clamp(28px, 5vw, 40px)/1.05 var(--display); letter-spacing: -.02em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+h2 { margin: 0 0 8px; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 18px; align-items: end; }
+.field[hidden] { display: none; }
+.seg { display: flex; gap: 0; }
+.seg button { flex: 1; border-radius: 0; padding: 7px 10px; }
+.seg button:first-child { border-radius: 8px 0 0 8px; }
+.seg button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.field label, .field .lab { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+.field output { font: 500 13px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+select, input[type=range], button { font: inherit; color: inherit; }
+select { width: 100%; padding: 7px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 8px 12px; font-weight: 500; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+button:hover { filter: brightness(1.06); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+.scene-card { padding: 10px; }
+#scene { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; background: #bfe0f3; }
+.transport { display: grid; grid-template-columns: auto auto minmax(80px, 1fr) auto; gap: 10px; align-items: center; margin-top: 10px; }
+#scrub { --w0: 40%; --w1: 60%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 6px; width: 100%;
+  background: linear-gradient(to right, var(--line) 0 var(--w0), var(--gold) var(--w0) var(--w1), var(--line) var(--w1) 100%); }
+#scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); }
+#scrub::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 2px solid var(--card); }
+.hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
+
+.left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.side { display: flex; flex-direction: column; gap: 12px; }
+dl.read { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0; }
+dl.read dt { color: var(--muted); font-size: 13px; }
+dl.read dd { margin: 0; text-align: right; font: 500 13px var(--mono); font-variant-numeric: tabular-nums; }
+.stage-name { font: 600 18px var(--display); margin: 0 0 8px; min-height: 1.3em; }
+.bars { display: grid; gap: 7px; margin: 6px 0 10px; }
+.bar { display: grid; grid-template-columns: 92px 1fr 38px; gap: 8px; align-items: center; font-size: 12.5px; }
+.bar .track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 4px; background: var(--leaf); width: 0; transition: width .25s; }
+.bar .fill.warn { background: var(--gold); } .bar .fill.bad { background: var(--heat); }
+.bar span:last-child { font: 500 12px var(--mono); text-align: right; }
+.score { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--line); padding-top: 8px; }
+.score strong { font: 700 24px var(--display); }
+.big { font: 700 32px/1 var(--display); letter-spacing: -.02em; }
+.big small { font: 500 13px var(--mono); color: var(--muted); letter-spacing: 0; }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.flags li { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--line); }
+.flags li.bad { background: color-mix(in srgb, var(--heat) 22%, var(--card)); }
+.flags li.good { background: color-mix(in srgb, var(--leaf) 22%, var(--card)); }
+.best { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.best b { color: var(--ink); font-weight: 600; }
+
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 4px; }
+.chart-head h2 { margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+canvas.chart { width: 100%; height: 170px; display: block; touch-action: pan-y; cursor: ew-resize; }
+.notes { font-size: 12.5px; color: var(--muted); max-width: 90ch; }
+
+@media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } .transport { grid-template-columns: auto auto 1fr; } .transport #speed { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow" id="eyebrow">Crop model · day by day</p>
+    <h1>Crop Season Viewer</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="card controls" aria-label="Season settings">
+    <div class="field"><span class="lab">Crop</span><div class="seg" role="group" aria-label="Crop"><button id="crop-maize" type="button" aria-pressed="true">Maize</button><button id="crop-wheat" type="button" aria-pressed="false">Wheat</button></div></div>
+    <div class="field"><label for="scenario">Weather year</label><select id="scenario"></select></div>
+    <div class="field" id="habitField" hidden><label for="habit">Growth habit</label><select id="habit"><option value="winter">Winter wheat</option><option value="spring">Spring wheat</option></select></div>
+    <div class="field"><label for="sow">Sowing date <output id="sowOut"></output></label><input id="sow" type="range" min="95" max="185" step="5"></div>
+    <div class="field"><label for="rm"><span id="rmLab">Hybrid maturity</span> <output id="rmOut"></output></label><input id="rm" type="range" min="95" max="125" step="5"></div>
+    <div class="field"><label for="nrate">Nitrogen <output id="nOut"></output></label><input id="nrate" type="range" min="0" max="300" step="20"></div>
+    <div class="field"><span class="lab">Random weather draw <output id="yearOut"></output></span><button id="newYear" type="button">Draw another year</button></div>
+  </section>
+
+  <main class="stage">
+    <div class="left">
+    <div class="card scene-card">
+      <canvas id="scene" role="img" aria-label="Animated maize field with the soil profile below it. Plant growth, rain, sun and soil water follow the simulation."></canvas>
+      <div class="transport">
+        <button id="play" class="primary" type="button">Play season</button>
+        <button id="restart" type="button">Restart</button>
+        <input id="scrub" type="range" min="0" max="100" step="0.01" aria-label="Day of season">
+        <select id="speed" aria-label="Playback speed"><option value="6">Slow</option><option value="12" selected>Normal</option><option value="30">Fast</option></select>
+      </div>
+      <p class="hint">Gold on the slider and charts marks the critical window around silking. Drag any chart to scrub.</p>
+    </div>
+    <section class="card">
+        <h2>Season result</h2>
+        <div class="big"><span id="res-yield"></span> <small>t/ha grain</small></div>
+        <ul class="flags" id="res-flags"></ul>
+        <p class="best" id="res-best"></p>
+        <p style="margin:8px 0 0"><button id="tryBest" type="button">Load the best choice</button></p>
+      </section>
+    </div>
+
+    <aside class="side">
+      <section class="card" aria-live="off">
+        <h2>Today</h2>
+        <p class="stage-name" id="r-stage"></p>
+        <dl class="read">
+          <dt>Date</dt><dd id="r-date"></dd>
+          <dt>Day after sowing</dt><dd id="r-day"></dd>
+          <dt>Tmax / Tmin</dt><dd id="r-temp"></dd>
+          <dt>Rain</dt><dd id="r-rain"></dd>
+          <dt>Radiation</dt><dd id="r-rad"></dd>
+          <dt>Leaf area index</dt><dd id="r-lai"></dd>
+          <dt>Biomass</dt><dd id="r-bio"></dd>
+          <dt>Grain so far</dt><dd id="r-grain"></dd>
+          <dt>Water stress</dt><dd id="r-ws"></dd>
+          <dt>Nitrogen index</dt><dd id="r-nni"></dd>
+          <dt id="r-vern-t">Vernalization</dt><dd id="r-vern"></dd>
+          <dt id="r-kernels-t">Kernels</dt><dd id="r-kernels"></dd>
+        </dl>
+      </section>
+      <section class="card">
+        <h2>Where the window landed</h2>
+        <p id="w-dates" class="stage-name" style="font-size:15px"></p>
+        <div class="bars">
+          <div class="bar"><span>Radiation</span><div class="track"><div class="fill" id="w-radiation"></div></div><span id="wv-radiation"></span></div>
+          <div class="bar"><span>Temperature</span><div class="track"><div class="fill" id="w-temperature"></div></div><span id="wv-temperature"></span></div>
+          <div class="bar"><span>Soil water</span><div class="track"><div class="fill" id="w-water"></div></div><span id="wv-water"></span></div>
+          <div class="bar"><span>Nitrogen</span><div class="track"><div class="fill" id="w-nitrogen"></div></div><span id="wv-nitrogen"></span></div>
+          <div class="bar"><span>No heat damage</span><div class="track"><div class="fill" id="w-heat"></div></div><span id="wv-heat"></span></div>
+        </div>
+        <div class="score"><span>Conditions score</span><strong id="w-score"></strong></div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="charts" aria-label="Season charts">
+    <div class="card"><div class="chart-head"><h2>Temperature and rain</h2><div class="legend"><span><i style="background:var(--heat)"></i>Tmax °C</span><span><i style="background:var(--water)"></i>Tmin °C</span><span><i style="background:var(--water);opacity:.6"></i>Rain (bars, right)</span></div></div><canvas class="chart" id="c-weather"></canvas></div>
+    <div class="card"><div class="chart-head"><h2>Radiation, MJ per m² per day</h2><div class="legend"><span><i style="background:var(--gold)"></i>Incoming</span><span><i style="background:var(--leaf)"></i>Intercepted by canopy</span></div></div><canvas class="chart" id="c-light"></canvas></div>
+    <div class="card"><div class="chart-head"><h2>Dry matter, g per m²</h2><div class="legend"><span><i style="background:var(--soil)"></i>Root</span><span><i style="background:#8fb36a"></i>Stem</span><span><i style="background:var(--leaf)"></i>Leaf</span><span><i style="background:var(--gold)"></i>Ear</span><span><i style="background:var(--ink)"></i>Leaf area index (right)</span></div></div><canvas class="chart" id="c-biomass"></canvas></div>
+    <div class="card"><div class="chart-head"><h2>Stress indices, 1 = none</h2><div class="legend" id="lg-stress"></div></div><canvas class="chart" id="c-stress"></canvas></div>
+  </section>
+
+  <p class="notes">Model parameters are generic placeholders and the weather is a synthetic annual cycle, so read the shapes and the timing effects, not the absolute yields. The best choice is the highest-yield combination on a coarse grid of sowing dates, varieties and nitrogen rates for the current weather year, preferring less nitrogen when yields are within 1%.</p>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
