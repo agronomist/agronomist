@@ -27,6 +27,7 @@ const dims: Dim[] = [
   { name: "autumnFraction", lo: 0.1, hi: 0.7, base: WATER_DEFAULTS.autumnFraction, set: (v, _t, _s, w) => void (w.autumnFraction = v) },
   { name: "wetScale", lo: 0.4, hi: 1.6, base: 1, set: (v, t) => void (t.wetScale = v) },
   { name: "wtScale", lo: 0.4, hi: 1.6, base: 1, set: (v, t) => void (t.wtScale = v) },
+  { name: "et0Scale", lo: 0.7, hi: 1.1, base: 1, set: (v, t) => void (t.et0Scale = v) },
   { name: "irrScale", lo: 0.5, hi: 1.5, base: 1, set: (v, t) => void (t.irrScale = v) },
   { name: "canopyCoupling", lo: 0.1, hi: 0.6, base: 0.3, set: (v, _t, s) => void (s.canopyCoupling = v) },
   { name: "heatDamageRate", lo: 0.004, hi: 0.014, base: 0.0088, set: (v, _t, s) => void (s.heatDamageRate = v) },
@@ -36,7 +37,7 @@ const dims: Dim[] = [
   { name: "stemReserveFraction", lo: 0, hi: 0.25, base: 0, set: (v, _t, s) => void ((s.stemReserveFraction = v), (s.stemRemobRate = 3)) },
 ];
 const structural = crop === "maize"; // the crop-parameter dimensions above are maize's; other crops tune the first five only
-const shared = new Set(["delayPerMm", "delayPerDegC", "runoffCN", "autumnFraction", "wetScale", "wtScale", "irrScale"]);
+const shared = new Set(["delayPerMm", "delayPerDegC", "runoffCN", "autumnFraction", "wetScale", "wtScale", "irrScale", "et0Scale"]);
 const active = structural ? dims : dims.filter((d) => shared.has(d.name));
 
 const apply = (x: number[]) => {

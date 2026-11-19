@@ -1,3 +1,4 @@
+import { tuning } from "./tuning";
 import {
   simulate,
   windowConditions,
@@ -112,6 +113,7 @@ export function simulateOption(cfg: CropConfig, loc: Location, soil: SoilParams,
     }
   }
   let weather = season.slice(m.sowDoy - cfg.yearStart);
+  if (tuning.et0Scale !== 1) weather = weather.map((d) => (d.et0 === undefined ? d : { ...d, et0: d.et0 * tuning.et0Scale }));
   if (tw.noWaterLimit) weather = weather.map((w) => ({ ...w, rain: Math.max(w.rain, 12) }));
   return simulate({
     weather,
