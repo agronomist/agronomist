@@ -152,7 +152,7 @@ export function registerLocation(loc: Location): Location {
 export const locationByKey = (k: string): Location => custom.get(k) ?? LOCATIONS.find((l) => l.key === k) ?? LOCATIONS[0]!;
 
 /** Thickness of the extra deep layer added below the mapped metre, mm. Roots of maize and wheat reach 1.5 m or more where the soil allows. */
-export const DEEP_LAYER_MM = 500;
+export const DEEP_LAYER_MM = 1000;
 
 /** Add a deep layer with the texture of the deepest mapped one (no organic N; nitrate leached from above can still be taken up). */
 function deepen(sp: SoilParams): SoilParams {

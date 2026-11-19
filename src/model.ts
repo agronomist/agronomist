@@ -372,7 +372,7 @@ export function simulate(input: SimulationInput): SimulationResult {
       }
     } else if (
       dvs >= p.frostSeedlingDvs &&
-      w.tmin <= (dvs >= (p.frostSensitiveDvs ?? 0) ? p.frostKillTemp : (p.frostHardyTemp ?? p.frostKillTemp))
+      (dvs < (p.frostSensitiveDvs ?? 0) && p.frostHardyCrown ? 0.5 * (w.tmin + tmean) : w.tmin) <= (dvs >= (p.frostSensitiveDvs ?? 0) ? p.frostKillTemp : (p.frostHardyTemp ?? p.frostKillTemp))
     ) {
       // killing frost: after black layer it is harmless, before it ends the crop
       if (dvs >= p.frostSafeDvs) matured = true;

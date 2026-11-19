@@ -78,7 +78,7 @@ export const setStructure = (o: Record<string, unknown> | null) => void (structu
  * `autumnFraction` is how full the root zone is on 1 October, before the winter spin-up. Set to null to run without them (for comparisons).
  */
 export interface WaterSettings { runoffCN: number; snowDegreeDay: number; autumnFraction: number; rootGrowthMmPerTT?: number; evapStage1Mm?: number; upwardFlux?: number }
-export const WATER_DEFAULTS: WaterSettings = { runoffCN: 78, snowDegreeDay: 3, autumnFraction: 0.35 };
+export const WATER_DEFAULTS: WaterSettings = { runoffCN: 78, snowDegreeDay: 3, autumnFraction: 0.6 };
 let water: WaterSettings | null = WATER_DEFAULTS;
 export const setWater = (w: Partial<WaterSettings> | null) => void (water = w === null ? null : { ...WATER_DEFAULTS, ...w });
 

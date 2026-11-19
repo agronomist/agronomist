@@ -91,3 +91,20 @@ export const STATE_PROFILES: StateProfile[] = [
     { name: "north", lat: 48.5, lon: -98.5, w: 0.2, irrCorn: 0.02 },
   ] },
 ];
+
+/**
+ * Typical maize hybrid maturity (relative maturity, days) grown in each state: short in the north, where the season is short,
+ * long in the south. Agronomic rule of thumb, not fitted to yields.
+ */
+export const STATE_RM: Record<string, number> = {
+  "North Dakota": 92,
+  "South Dakota": 100,
+  Minnesota: 100,
+  Iowa: 109,
+  Nebraska: 111,
+  Illinois: 111,
+  Indiana: 111,
+  Ohio: 109,
+  Missouri: 112,
+  Kansas: 112,
+};

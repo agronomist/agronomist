@@ -94,6 +94,8 @@ export interface CropParams {
   frostSeedlingDvs: number; // below this DVS the growing point is protected (no kill)
   /** Optional hardier threshold (°C) used before frostSensitiveDvs (e.g. wheat in winter). Default: frostKillTemp. */
   frostHardyTemp?: number;
+  /** If true, the hardy-stage kill test uses the crown temperature (halfway between the day's minimum and mean air temperature: soil and snow damp the swing) instead of the air minimum. Winter wheat survives air minima well below its crown's lethal temperature. */
+  frostHardyCrown?: boolean;
   /** DVS from which frostKillTemp applies instead of frostHardyTemp (e.g. wheat from jointing/booting). Default 0. */
   frostSensitiveDvs?: number;
   frostSafeDvs: number; // at or above this DVS (black layer) a frost no longer reduces yield; run ends as mature

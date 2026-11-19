@@ -46,6 +46,7 @@ export const wheatWinterDefaults: CropParams = {
 
   frostKillTemp: -4, // after booting
   frostHardyTemp: -16, // hardened winter wheat before booting
+  frostHardyCrown: true, // judged on crown temperature, not air minimum
   frostSensitiveDvs: 0.7,
   frostSeedlingDvs: 0,
   frostSafeDvs: 1.9,
@@ -114,6 +115,7 @@ export const wheatSpringDefaults: CropParams = {
   ...wheatWinterDefaults,
   vernRequired: 0,
   frostHardyTemp: -9,
+  frostHardyCrown: false,
   ttSilking: 860,
 };
 

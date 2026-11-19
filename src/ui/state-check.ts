@@ -9,7 +9,8 @@ import type { Management } from "./model-run";
 import { sowingDays } from "./planting";
 import { irrShare, stateYields, type PointRuns } from "./state-model";
 import { simulateOption } from "./model-run";
-import { STATE_PROFILES } from "./states";
+import { STATE_PROFILES, STATE_RM } from "./states";
+import { tuning } from "./tuning";
 import { seriesFor, validate, buAcToDryTHa, type ValidationResult } from "./validation";
 
 export interface StateRow {
@@ -101,12 +102,13 @@ export async function collectAll(onProgress: (msg: string) => void): Promise<num
  * For each state: the one-point preset run (what the page did before), the weighted points run, and the full run with the
  * irrigated and poorly drained shares added. Every run is the crop's default plan on every real weather year.
  */
-export async function runStateCheck(crop: CropKey, plan: Management, prices: Prices, onProgress: (msg: string) => void, opts: { timedOnly?: boolean; states?: string[] } = {}): Promise<StateRow[]> {
+export async function runStateCheck(crop: CropKey, basePlan: Management, prices: Prices, onProgress: (msg: string) => void, opts: { timedOnly?: boolean; states?: string[] } = {}): Promise<StateRow[]> {
   const cfg = CROPS[crop];
   const rows: StateRow[] = [];
   const list = seriesFor(crop).filter((s) => !opts.states || opts.states.includes(s.state));
   for (const [i, s] of list.entries()) {
     onProgress(`${s.state} (${i + 1} of ${list.length})…`);
+    const plan = crop === "maize" && tuning.stateRm ? { ...basePlan, rm: STATE_RM[s.state] ?? basePlan.rm } : basePlan;
     const prof = STATE_PROFILES.find((p) => p.state === s.state)!;
     const preset = locationByKey(s.location);
     const row: StateRow = { state: s.state, years: Object.keys(s.years).length, preset: null, points: null, full: null, timed: null, note: "" };
