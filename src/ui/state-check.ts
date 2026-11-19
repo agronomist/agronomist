@@ -26,7 +26,7 @@ export interface StateRow {
 const soils = new Map<string, Promise<SoilParams | null>>();
 const profiles = new Map<string, SoilPointProfile>();
 const soilKey = (lat: number, lon: number) => `${lat.toFixed(2)},${lon.toFixed(2)}`;
-function pointSoil(lat: number, lon: number): Promise<SoilParams | null> {
+export function pointSoil(lat: number, lon: number): Promise<SoilParams | null> {
   const k = soilKey(lat, lon);
   let p = soils.get(k);
   if (!p) {
